@@ -10,6 +10,7 @@ import {
   useSimulateSentryWebhook, useListWebhookJobs, getListWebhookJobsQueryKey,
 } from "@workspace/api-client-react";
 import { DiagnosisCard } from "@/components/diagnosis-card";
+import { DiagnosticTerminal, extractTracePath, type TerminalRun } from "@/components/diagnostic-terminal";
 import { errMsg, fmtSec } from "@/lib/diff";
 
 const REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
@@ -32,6 +33,15 @@ export default function Dashboard() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const timer = useRef<number | null>(null);
+  const runSeq = useRef(0);
+  const [termRun, setTermRun] = useState<TerminalRun | null>(null);
+  const [termOpen, setTermOpen] = useState(false);
+  const [flash, setFlash] = useState<{ run: number; incidentId: number } | null>(null);
+  useEffect(() => {
+    if (!flash) return;
+    const timeout = window.setTimeout(() => setFlash(null), 2000);
+    return () => window.clearTimeout(timeout);
+  }, [flash]);
 
   const config = useGetConfig({ query: { queryKey: getGetConfigQueryKey(), refetchInterval: 30000 } });
   const incidents = useListIncidents({ query: { queryKey: getListIncidentsQueryKey(), refetchInterval: 15000 } });
@@ -72,11 +82,21 @@ export default function Dashboard() {
 
   const runAnalyze = () => {
     setElapsed(0);
+    if (timer.current) window.clearInterval(timer.current);
+    const runId = ++runSeq.current;
+    setTermRun({ id: runId, repo: repo.trim(), branch: branch.trim(), tracePath: extractTracePath(trace), traceLines: trace.split("\n").filter(Boolean).length, status: "pending" });
+    setTermOpen(true);
     const start = performance.now();
     timer.current = window.setInterval(() => setElapsed((performance.now() - start) / 1000), 100);
     analyze.mutate({ data: { repository: repo.trim(), branch: branch.trim(), stack_trace: trace, simulated } }, {
-      onSuccess: (inc) => { setSelectedId(inc.id); invalidate(); },
-      onSettled: () => { if (timer.current) window.clearInterval(timer.current); },
+      onSuccess: (inc) => {
+        if (runSeq.current !== runId) return;
+        setSelectedId(inc.id); invalidate();
+        setTermRun((r) => r && r.id === runId ? { ...r, status: "success", elapsed: inc.elapsed_seconds, filePath: inc.diagnosis.file_path } : r);
+        setFlash({ run: runId, incidentId: inc.id });
+      },
+      onError: (e) => { if (runSeq.current === runId) setTermRun((r) => r && r.id === runId ? { ...r, status: "error", error: errMsg(e) } : r); },
+      onSettled: () => { if (runSeq.current === runId && timer.current) window.clearInterval(timer.current); },
     });
   };
   useEffect(() => () => { if (timer.current) window.clearInterval(timer.current); }, []);
@@ -141,7 +161,7 @@ export default function Dashboard() {
 
         <div className="grid xl:grid-cols-[440px_1fr] gap-6 items-start">
           {/* Ingest */}
-          <section className="rounded-xl border border-zinc-800 bg-zinc-900/50 xl:sticky xl:top-20">
+          <section className={`rounded-xl border border-zinc-800 bg-zinc-900/50 xl:sticky xl:top-20 ${analyze.isPending ? "pw-active-card" : ""}`}>
             <div className="px-4 py-3 border-b border-zinc-800 flex items-center gap-2 text-sm">
               <span className="font-mono text-[11px] text-orange-400">01</span><span className="font-medium">Ingest incident</span>
             </div>
@@ -184,7 +204,7 @@ export default function Dashboard() {
               {simulate.isError && <ErrorLine msg={`Simulation failed: ${errMsg(simulate.error)}. Check the repository exists and GITHUB_TOKEN has access.`} onRetry={runSimulate} />}
 
               <button onClick={runAnalyze} disabled={!repoValid || !branchValid || !traceValid || analyze.isPending} data-testid="button-analyze"
-                className="relative w-full h-11 rounded-lg bg-orange-500 text-zinc-950 font-medium text-sm flex items-center justify-center gap-2 overflow-hidden hover:bg-orange-400 active:scale-[0.99] disabled:bg-zinc-800 disabled:text-zinc-500 transition-[background-color,transform]">
+                className="pw-cta relative w-full h-11 rounded-lg bg-orange-500 text-zinc-950 font-medium text-sm flex items-center justify-center gap-2 overflow-hidden hover:bg-orange-400 active:scale-[0.99] disabled:bg-zinc-800 disabled:text-zinc-500 transition-[background-color,transform]">
                 {analyze.isPending ? (
                   <>
                     <span className="absolute inset-y-0 left-0 w-1/3 bg-white/20 scan" />
@@ -193,6 +213,7 @@ export default function Dashboard() {
                   </>
                 ) : (<><Sparkles className="size-4" />Analyze &amp; diagnose incident</>)}
               </button>
+              {termRun && <DiagnosticTerminal run={termRun} open={termOpen} onToggle={() => setTermOpen((o) => !o)} />}
               {!analyze.isPending && analyze.isSuccess && <p className="text-[11px] text-emerald-300 text-center font-mono">Last run finished in {elapsed.toFixed(1)}s</p>}
               {analyze.isError && <ErrorLine msg={`Analysis failed: ${errMsg(analyze.error)}`} onRetry={runAnalyze} />}
               {cfg && (!cfg.github_connected || !cfg.gemini_connected) && (
@@ -226,7 +247,7 @@ export default function Dashboard() {
               <span className="font-mono text-[11px] text-orange-400">02</span><span className="font-medium">Diagnosis</span>
             </div>
             {analyze.isPending ? (
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5 space-y-3">
+              <div className="pw-active-card rounded-xl border border-zinc-800 bg-zinc-900/40 p-5 space-y-3">
                 {["Parsing stack frames", "Fetching file and last 5 commits from GitHub", "Asking Gemini for root cause and patch"].map((s, i) => (
                   <div key={s} className="flex items-center gap-3 text-sm text-zinc-400">
                     <span className={`size-1.5 rounded-full ${elapsed > i * 3 ? "bg-orange-400 animate-pulse" : "bg-zinc-700"}`} />{s}
@@ -235,7 +256,10 @@ export default function Dashboard() {
                 <div className="h-40 rounded-lg bg-zinc-800/40 animate-pulse" />
               </div>
             ) : selected ? (
-              <DiagnosisCard key={selected.id} incident={selected} onToggleStatus={() => setStatus(selected)} updating={update.isPending} />
+              <div key={selected.id}
+                className={flash && flash.incidentId === selected.id ? "pw-success-flash" : undefined}>
+                <DiagnosisCard key={selected.id} incident={selected} onToggleStatus={() => setStatus(selected)} updating={update.isPending} />
+              </div>
             ) : (
               <div className="rounded-xl border border-dashed border-zinc-800 px-6 py-14 text-center">
                 <FileCode2 className="size-6 mx-auto text-zinc-600" />
