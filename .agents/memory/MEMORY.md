@@ -1,1 +1,2 @@
-- [Patchwork scope](patchwork-scope.md) — diagnosis target, review-only patches, and truthful managed-connection versus environment status.
+- [Patchwork scope](patchwork-scope.md) — diagnosis target, human-approved draft PRs, Slack/webhook scope, and truthful integration status.
+- [Workspace test runtime](workspace-test-runtime.md) — bundle source-exported workspace imports for Node tests instead of externalizing them.

@@ -11,6 +11,69 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /incidents/{id}/create-pr:
+    post:
+      operationId: createIncidentPr
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Draft pull request opened or existing request returned
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Incident" }
+  /incidents/{id}/slack:
+    post:
+      operationId: sendIncidentSlack
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: integer } }
+      responses:
+        "200":
+          description: Slack delivery result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Incident" }
+  /webhooks/sentry:
+    post:
+      operationId: receiveSentryWebhook
+      description: Requires sentry-hook-signature HMAC SHA256 over the raw request body. Accepts normalized incident JSON or Sentry event data with repository metadata.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SentryInput" }
+      responses:
+        "202":
+          description: Persisted and queued; duplicate deliveries return the original job
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WebhookJob" }
+  /webhooks/sentry/simulate:
+    post:
+      operationId: simulateSentryWebhook
+      description: Submit a simulated trace from the dashboard through the same durable analysis queue.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IncidentInput" }
+      responses:
+        "202":
+          description: Simulation queued
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WebhookJob" }
+  /webhooks/jobs:
+    get:
+      operationId: listWebhookJobs
+      responses:
+        "200":
+          description: Recent webhook progress and failures
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/WebhookJob" }
   /config:
     get:
       operationId: getConfig
@@ -112,13 +175,32 @@ components:
   schemas:
     Config:
       type: object
-      required: [github_token, gemini_api_key, slack_webhook_url, github_connected, gemini_connected]
+      required: [github_token, gemini_api_key, slack_webhook_url, github_connected, gemini_connected, sentry_webhook_configured]
       properties:
         github_token: { type: boolean }
         gemini_api_key: { type: boolean }
         slack_webhook_url: { type: boolean }
         github_connected: { type: boolean }
         gemini_connected: { type: boolean }
+        sentry_webhook_configured: { type: boolean }
+    SentryInput:
+      type: object
+      additionalProperties: true
+      properties:
+        repository: { type: string }
+        branch: { type: string }
+        stack_trace: { type: string }
+        data: { type: object, additionalProperties: true }
+    WebhookJob:
+      type: object
+      required: [id, repository, status, incident_id, error, created_at]
+      properties:
+        id: { type: integer }
+        repository: { type: string }
+        status: { type: string, enum: [queued, processing, completed, failed] }
+        incident_id: { type: [integer, "null"] }
+        error: { type: [string, "null"] }
+        created_at: { type: string }
     RepositoryInput:
       type: object
       required: [repository, branch]
@@ -159,20 +241,25 @@ components:
         warnings:
           type: array
           items: { type: string }
+        source_commit_sha: { type: [string, "null"] }
+        suspect_author_login: { type: [string, "null"] }
     Incident:
       type: object
-      required: [id, repository, branch, stack_trace, error_type, status, created_at, elapsed_seconds, simulated, diagnosis]
+      required: [id, repository, branch, stack_trace, error_type, status, created_at, elapsed_seconds, simulated, diagnosis, pr_url, slack_status, slack_error]
       properties:
         id: { type: integer }
         repository: { type: string }
         branch: { type: string }
         stack_trace: { type: string }
         error_type: { type: string }
-        status: { type: string, enum: [active, resolved] }
+        status: { type: string, enum: [active, resolved, draft_pr_opened] }
         created_at: { type: string }
         elapsed_seconds: { type: number }
         simulated: { type: boolean }
         diagnosis: { $ref: "#/components/schemas/Diagnosis" }
+        pr_url: { type: [string, "null"] }
+        slack_status: { type: string, enum: [not_configured, not_sent, sent, failed] }
+        slack_error: { type: [string, "null"] }
     Summary:
       type: object
       required: [total, active, resolved, average_seconds]

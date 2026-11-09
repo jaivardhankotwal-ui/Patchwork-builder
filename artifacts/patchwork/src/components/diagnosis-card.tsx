@@ -1,12 +1,25 @@
 import { useState } from "react";
-import { AlertTriangle, Check, Clock, Copy, Download, ExternalLink, GitCommit, RotateCcw, ShieldAlert, User, CheckCircle2, FlaskConical } from "lucide-react";
-import type { Incident } from "@workspace/api-client-react";
+import { AlertTriangle, Check, Clock, Copy, Download, ExternalLink, GitCommit, RotateCcw, ShieldAlert, User, CheckCircle2, FlaskConical, GitPullRequest, Send, Loader2 } from "lucide-react";
+import { useCreateIncidentPr, useSendIncidentSlack, getListIncidentsQueryKey, getGetSummaryQueryKey, type Incident } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { DiffViewer } from "./diff-viewer";
-import { fmtSec } from "@/lib/diff";
+import { fmtSec, errMsg } from "@/lib/diff";
 
 export function DiagnosisCard({ incident, onToggleStatus, updating }: { incident: Incident; onToggleStatus: () => void; updating: boolean }) {
   const d = incident.diagnosis;
   const [copied, setCopied] = useState(false);
+  const qc = useQueryClient();
+  const pr = useCreateIncidentPr();
+  const slack = useSendIncidentSlack();
+  const refresh = (updated: Incident) => {
+    qc.setQueryData<Incident[]>(getListIncidentsQueryKey(), list => list?.map(i => i.id === updated.id ? updated : i));
+    qc.invalidateQueries({ queryKey: getListIncidentsQueryKey() });
+    qc.invalidateQueries({ queryKey: getGetSummaryQueryKey() });
+  };
+  const openPr = () => {
+    if (!window.confirm(`Create a branch, commit the proposed file and open a DRAFT pull request in ${incident.repository} against ${incident.branch}? This writes to GitHub, but will not merge or deploy anything.${incident.simulated ? " This incident is simulated." : ""}`)) return;
+    pr.mutate({ id: incident.id }, { onSuccess: refresh });
+  };
   const conf = Math.max(0, Math.min(100, Math.round(d.confidence_score)));
   const confTone = conf >= 75 ? "bg-emerald-400" : conf >= 45 ? "bg-orange-400" : "bg-rose-400";
 
@@ -35,13 +48,13 @@ export function DiagnosisCard({ incident, onToggleStatus, updating }: { incident
             <span className="flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded border border-orange-500/30 text-orange-300 bg-orange-500/10"><FlaskConical className="size-3" />Simulated trace</span>
           )}
           <span className={`text-[11px] px-1.5 py-0.5 rounded border ${incident.status === "active" ? "border-orange-500/30 text-orange-300" : "border-emerald-500/30 text-emerald-300"}`} data-testid="status-incident">
-            {incident.status}
+            {incident.status === "draft_pr_opened" ? "Draft PR Opened" : incident.status}
           </span>
         </div>
         <button onClick={onToggleStatus} disabled={updating} data-testid="button-toggle-status"
           className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border border-zinc-700 text-zinc-300 hover:border-zinc-500 hover:text-zinc-100 disabled:opacity-50 transition-colors">
-          {incident.status === "active" ? <CheckCircle2 className="size-3.5" /> : <RotateCcw className="size-3.5" />}
-          {incident.status === "active" ? "Mark resolved" : "Reopen"}
+          {incident.status !== "resolved" ? <CheckCircle2 className="size-3.5" /> : <RotateCcw className="size-3.5" />}
+          {incident.status !== "resolved" ? "Mark resolved" : "Reopen"}
         </button>
       </header>
 
@@ -93,6 +106,38 @@ export function DiagnosisCard({ incident, onToggleStatus, updating }: { incident
           </div>
         </div>
         <DiffViewer original={d.original_code_snippet} patched={d.patched_code_snippet} filePath={d.file_path} />
+        <div className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-4 space-y-3">
+          <div className="flex items-start gap-2">
+            <ShieldAlert className="size-4 text-orange-400 shrink-0 mt-0.5" />
+            <div className="text-xs text-zinc-400"><p className="font-medium text-orange-200 mb-1">Human-in-the-Loop Guardrail</p>
+              A senior developer must review and test this patch. Patchwork only opens draft PRs; it never merges, force-pushes, or deploys them.
+            </div>
+          </div>
+          {incident.pr_url ? (
+            <a href={incident.pr_url} target="_blank" rel="noreferrer" data-testid="link-draft-pr"
+              className="inline-flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 px-3 py-2 text-sm">
+              <GitPullRequest className="size-4" />View Draft PR on GitHub<ExternalLink className="size-3.5" />
+            </a>
+          ) : (
+            <button onClick={openPr} disabled={pr.isPending || !d.original_code_snippet || d.original_code_snippet === d.patched_code_snippet}
+              data-testid="button-create-pr" className="w-full flex justify-center items-center gap-2 rounded-md bg-orange-500 hover:bg-orange-400 text-zinc-950 px-3 py-3 font-medium text-sm disabled:opacity-40">
+              {pr.isPending ? <Loader2 className="size-4 animate-spin" /> : <GitPullRequest className="size-4" />}
+              {pr.isPending ? "Creating guarded draft PR…" : "Open Draft PR on GitHub (Human Verification Guardrail)"}
+            </button>
+          )}
+          {pr.isError && <p role="alert" className="text-xs text-rose-300">{errMsg(pr.error)}</p>}
+          <div className="flex flex-wrap items-center gap-3">
+            <button onClick={() => slack.mutate({ id: incident.id }, { onSuccess: refresh })} disabled={slack.isPending}
+              data-testid="button-send-slack" className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-md border border-zinc-700 hover:border-zinc-500 disabled:opacity-50">
+              {slack.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}Send to Slack
+            </button>
+            <span data-testid="text-slack-status" className={`text-xs ${incident.slack_status === "sent" ? "text-emerald-300" : "text-zinc-400"}`}>
+              {incident.slack_status === "sent" ? "Slack alert sent" : incident.slack_status === "failed" ? "Slack delivery failed" : incident.slack_status === "not_configured" ? "Slack not configured" : "Slack alert not sent"}
+            </span>
+          </div>
+          {incident.slack_error && <p role="status" className="text-xs text-orange-200">{incident.slack_error}</p>}
+          {slack.isError && <p role="alert" className="text-xs text-rose-300">{errMsg(slack.error)}</p>}
+        </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-xs text-zinc-500">Full patched file: <span className="font-mono text-zinc-400">{d.file_path}</span> · {d.full_patched_file.split("\n").length} lines</span>
           <div className="flex gap-2">

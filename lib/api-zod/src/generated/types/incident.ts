@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { Diagnosis } from './diagnosis';
+import type { IncidentSlackStatus } from './incidentSlackStatus';
 import type { IncidentStatus } from './incidentStatus';
 
 export interface Incident {
@@ -19,4 +20,9 @@ export interface Incident {
   elapsed_seconds: number;
   simulated: boolean;
   diagnosis: Diagnosis;
+  /** @nullable */
+  pr_url: string | null;
+  slack_status: IncidentSlackStatus;
+  /** @nullable */
+  slack_error: string | null;
 }

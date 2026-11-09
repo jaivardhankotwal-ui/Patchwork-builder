@@ -42,7 +42,7 @@ export async function diagnose(input: {repository: string; branch: string; stack
     ]);
     const history = await Promise.all(commits.map(async (commit: any) => {
       const detail = await github(`${repoUrl(repository)}/commits/${commit.sha}`);
-      return { sha: commit.sha, author: commit.commit.author.name, timestamp: commit.commit.author.date,
+      return { sha: commit.sha, author: commit.commit.author.name, login: commit.author?.login || null, timestamp: commit.commit.author.date,
         message: commit.commit.message, patch: detail.files?.find((f: any) => f.filename === path)?.patch ?? null };
     }));
     return { path, content, frames: frames.filter(f => f.path === path), history };
@@ -72,7 +72,7 @@ Do not falsely attribute a commit; null is preferable to unsupported attribution
   catch { throw new ServiceError("Gemini returned an incomplete diagnosis. Try again or use a smaller source file.", 502); }
   const file = context.find(f => f.path === result.file_path);
   if (!file) throw new ServiceError("Gemini selected a file outside the analyzed context. No patch was saved.", 502);
-  const warnings = ["AI-generated suggestion; review and run tests before applying. No repository changes have been made."];
+  const warnings = ["AI-generated suggestion; review and run tests before applying. Draft PRs are never automatically merged."];
   const suspect = file.history.find(h => h.sha === result.suspect_commit_sha);
   if (!suspect) {
     result.suspect_commit_sha = null;
@@ -87,6 +87,7 @@ Do not falsely attribute a commit; null is preferable to unsupported attribution
   } else warnings.push("No safe code change was identified.");
   if (input.simulated) warnings.push("Synthetic incident: this is a simulation, not a confirmed production crash.");
   return { error_type: parsed.error_type, diagnosis: {
-    ...result, suspect_author: suspect ? `${suspect.author} · ${suspect.timestamp}` : null, warnings,
+    ...result, suspect_author: suspect ? `${suspect.author} · ${suspect.timestamp}` : null,
+    suspect_author_login: suspect?.login ?? null, source_commit_sha: head.sha, warnings,
   }};
 }

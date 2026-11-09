@@ -26,8 +26,10 @@ import type {
   IncidentInput,
   IncidentUpdate,
   RepositoryInput,
+  SentryInput,
   Simulation,
-  Summary
+  Summary,
+  WebhookJob
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -56,6 +58,383 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getCreateIncidentPrUrl = (id: number,) => {
+
+
+
+
+  return `/api/incidents/${id}/create-pr`
+}
+
+export const createIncidentPr = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Incident> => {
+
+  return customFetch<Incident>(getCreateIncidentPrUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCreateIncidentPrMutationKey = () => ['createIncidentPr'] as const;
+
+export const getCreateIncidentPrMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createIncidentPr>>, TError,CreateIncidentPrMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createIncidentPr>>, TError,CreateIncidentPrMutationVariables, TContext> => {
+
+const mutationKey = getCreateIncidentPrMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createIncidentPr>>, CreateIncidentPrMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  createIncidentPr(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateIncidentPrMutationResult = NonNullable<Awaited<ReturnType<typeof createIncidentPr>>>
+
+    export type CreateIncidentPrMutationError = ErrorType<unknown>
+    export type CreateIncidentPrMutationVariables = {id: number}
+
+    export const useCreateIncidentPr = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createIncidentPr>>, TError,CreateIncidentPrMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createIncidentPr>>,
+        TError,
+        CreateIncidentPrMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateIncidentPrMutationOptions(options));
+    }
+
+export const getSendIncidentSlackUrl = (id: number,) => {
+
+
+
+
+  return `/api/incidents/${id}/slack`
+}
+
+export const sendIncidentSlack = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Incident> => {
+
+  return customFetch<Incident>(getSendIncidentSlackUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSendIncidentSlackMutationKey = () => ['sendIncidentSlack'] as const;
+
+export const getSendIncidentSlackMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendIncidentSlack>>, TError,SendIncidentSlackMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendIncidentSlack>>, TError,SendIncidentSlackMutationVariables, TContext> => {
+
+const mutationKey = getSendIncidentSlackMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendIncidentSlack>>, SendIncidentSlackMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  sendIncidentSlack(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendIncidentSlackMutationResult = NonNullable<Awaited<ReturnType<typeof sendIncidentSlack>>>
+
+    export type SendIncidentSlackMutationError = ErrorType<unknown>
+    export type SendIncidentSlackMutationVariables = {id: number}
+
+    export const useSendIncidentSlack = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendIncidentSlack>>, TError,SendIncidentSlackMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendIncidentSlack>>,
+        TError,
+        SendIncidentSlackMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendIncidentSlackMutationOptions(options));
+    }
+
+export const getReceiveSentryWebhookUrl = () => {
+
+
+
+
+  return `/api/webhooks/sentry`
+}
+
+/**
+ * Requires sentry-hook-signature HMAC SHA256 over the raw request body. Accepts normalized incident JSON or Sentry event data with repository metadata.
+ */
+export const receiveSentryWebhook = async (sentryInput: SentryInput, options?: Parameters<typeof customFetch>[1]): Promise<WebhookJob> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<WebhookJob>(getReceiveSentryWebhookUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(sentryInput)
+  }
+);}
+
+
+
+
+
+export const getReceiveSentryWebhookMutationKey = () => ['receiveSentryWebhook'] as const;
+
+export const getReceiveSentryWebhookMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof receiveSentryWebhook>>, TError,ReceiveSentryWebhookMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof receiveSentryWebhook>>, TError,ReceiveSentryWebhookMutationVariables, TContext> => {
+
+const mutationKey = getReceiveSentryWebhookMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof receiveSentryWebhook>>, ReceiveSentryWebhookMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  receiveSentryWebhook(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReceiveSentryWebhookMutationResult = NonNullable<Awaited<ReturnType<typeof receiveSentryWebhook>>>
+    export type ReceiveSentryWebhookMutationBody = BodyType<SentryInput>
+    export type ReceiveSentryWebhookMutationError = ErrorType<unknown>
+    export type ReceiveSentryWebhookMutationVariables = {data: BodyType<SentryInput>}
+
+    export const useReceiveSentryWebhook = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof receiveSentryWebhook>>, TError,ReceiveSentryWebhookMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof receiveSentryWebhook>>,
+        TError,
+        ReceiveSentryWebhookMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReceiveSentryWebhookMutationOptions(options));
+    }
+
+export const getSimulateSentryWebhookUrl = () => {
+
+
+
+
+  return `/api/webhooks/sentry/simulate`
+}
+
+/**
+ * Submit a simulated trace from the dashboard through the same durable analysis queue.
+ */
+export const simulateSentryWebhook = async (incidentInput: IncidentInput, options?: Parameters<typeof customFetch>[1]): Promise<WebhookJob> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<WebhookJob>(getSimulateSentryWebhookUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(incidentInput)
+  }
+);}
+
+
+
+
+
+export const getSimulateSentryWebhookMutationKey = () => ['simulateSentryWebhook'] as const;
+
+export const getSimulateSentryWebhookMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof simulateSentryWebhook>>, TError,SimulateSentryWebhookMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof simulateSentryWebhook>>, TError,SimulateSentryWebhookMutationVariables, TContext> => {
+
+const mutationKey = getSimulateSentryWebhookMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof simulateSentryWebhook>>, SimulateSentryWebhookMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  simulateSentryWebhook(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SimulateSentryWebhookMutationResult = NonNullable<Awaited<ReturnType<typeof simulateSentryWebhook>>>
+    export type SimulateSentryWebhookMutationBody = BodyType<IncidentInput>
+    export type SimulateSentryWebhookMutationError = ErrorType<unknown>
+    export type SimulateSentryWebhookMutationVariables = {data: BodyType<IncidentInput>}
+
+    export const useSimulateSentryWebhook = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof simulateSentryWebhook>>, TError,SimulateSentryWebhookMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof simulateSentryWebhook>>,
+        TError,
+        SimulateSentryWebhookMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSimulateSentryWebhookMutationOptions(options));
+    }
+
+export const getListWebhookJobsUrl = () => {
+
+
+
+
+  return `/api/webhooks/jobs`
+}
+
+export const listWebhookJobs = async ( options?: Parameters<typeof customFetch>[1]): Promise<WebhookJob[]> => {
+
+  return customFetch<WebhookJob[]>(getListWebhookJobsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListWebhookJobsQueryKey = () => {
+    return [
+    `/api/webhooks/jobs`
+    ] as const;
+    }
+
+
+export const getListWebhookJobsQueryOptions = <TData = Awaited<ReturnType<typeof listWebhookJobs>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWebhookJobs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListWebhookJobsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listWebhookJobs>>> = ({ signal }) => listWebhookJobs({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listWebhookJobs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListWebhookJobsQueryResult = NonNullable<Awaited<ReturnType<typeof listWebhookJobs>>>
+export type ListWebhookJobsQueryError = ErrorType<unknown>
+
+
+
+export function useListWebhookJobs<TData = Awaited<ReturnType<typeof listWebhookJobs>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWebhookJobs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListWebhookJobsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetConfigUrl = () => {
 

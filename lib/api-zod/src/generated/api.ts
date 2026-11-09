@@ -8,12 +8,139 @@
 import * as zod from 'zod';
 
 
+export const CreateIncidentPrParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const CreateIncidentPrResponse = zod.object({
+  "id": zod.number().int(),
+  "repository": zod.string(),
+  "branch": zod.string(),
+  "stack_trace": zod.string(),
+  "error_type": zod.string(),
+  "status": zod.enum(['active', 'resolved', 'draft_pr_opened']),
+  "created_at": zod.string(),
+  "elapsed_seconds": zod.number(),
+  "simulated": zod.boolean(),
+  "diagnosis": zod.object({
+  "root_cause_summary": zod.string(),
+  "suspect_commit_sha": zod.string().nullable(),
+  "suspect_author": zod.string().nullable(),
+  "confidence_score": zod.number(),
+  "original_code_snippet": zod.string(),
+  "patched_code_snippet": zod.string(),
+  "full_patched_file": zod.string(),
+  "file_path": zod.string(),
+  "warnings": zod.array(zod.string()),
+  "source_commit_sha": zod.string().nullish(),
+  "suspect_author_login": zod.string().nullish()
+}),
+  "pr_url": zod.string().nullable(),
+  "slack_status": zod.enum(['not_configured', 'not_sent', 'sent', 'failed']),
+  "slack_error": zod.string().nullable()
+})
+
+
+export const SendIncidentSlackParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const SendIncidentSlackResponse = zod.object({
+  "id": zod.number().int(),
+  "repository": zod.string(),
+  "branch": zod.string(),
+  "stack_trace": zod.string(),
+  "error_type": zod.string(),
+  "status": zod.enum(['active', 'resolved', 'draft_pr_opened']),
+  "created_at": zod.string(),
+  "elapsed_seconds": zod.number(),
+  "simulated": zod.boolean(),
+  "diagnosis": zod.object({
+  "root_cause_summary": zod.string(),
+  "suspect_commit_sha": zod.string().nullable(),
+  "suspect_author": zod.string().nullable(),
+  "confidence_score": zod.number(),
+  "original_code_snippet": zod.string(),
+  "patched_code_snippet": zod.string(),
+  "full_patched_file": zod.string(),
+  "file_path": zod.string(),
+  "warnings": zod.array(zod.string()),
+  "source_commit_sha": zod.string().nullish(),
+  "suspect_author_login": zod.string().nullish()
+}),
+  "pr_url": zod.string().nullable(),
+  "slack_status": zod.enum(['not_configured', 'not_sent', 'sent', 'failed']),
+  "slack_error": zod.string().nullable()
+})
+
+
+/**
+ * Requires sentry-hook-signature HMAC SHA256 over the raw request body. Accepts normalized incident JSON or Sentry event data with repository metadata.
+ */
+export const ReceiveSentryWebhookBody = zod.object({
+  "repository": zod.string().optional(),
+  "branch": zod.string().optional(),
+  "stack_trace": zod.string().optional(),
+  "data": zod.record(zod.string(), zod.unknown()).optional()
+})
+
+export const ReceiveSentryWebhookResponse = zod.object({
+  "id": zod.number().int(),
+  "repository": zod.string(),
+  "status": zod.enum(['queued', 'processing', 'completed', 'failed']),
+  "incident_id": zod.number().int().nullable(),
+  "error": zod.string().nullable(),
+  "created_at": zod.string()
+})
+
+
+/**
+ * Submit a simulated trace from the dashboard through the same durable analysis queue.
+ */
+export const simulateSentryWebhookBodyOneRepositoryRegExp = new RegExp('^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$');
+export const simulateSentryWebhookBodyOneBranchMax = 250;
+
+export const simulateSentryWebhookBodyTwoStackTraceMin = 10;
+export const simulateSentryWebhookBodyTwoStackTraceMax = 50000;
+
+export const simulateSentryWebhookBodyTwoSimulatedDefault = false;
+
+export const SimulateSentryWebhookBody = zod.object({
+  "repository": zod.string().regex(simulateSentryWebhookBodyOneRepositoryRegExp),
+  "branch": zod.string().min(1).max(simulateSentryWebhookBodyOneBranchMax)
+}).and(zod.object({
+  "stack_trace": zod.string().min(simulateSentryWebhookBodyTwoStackTraceMin).max(simulateSentryWebhookBodyTwoStackTraceMax),
+  "simulated": zod.boolean().default(simulateSentryWebhookBodyTwoSimulatedDefault)
+}))
+
+export const SimulateSentryWebhookResponse = zod.object({
+  "id": zod.number().int(),
+  "repository": zod.string(),
+  "status": zod.enum(['queued', 'processing', 'completed', 'failed']),
+  "incident_id": zod.number().int().nullable(),
+  "error": zod.string().nullable(),
+  "created_at": zod.string()
+})
+
+
+export const ListWebhookJobsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "repository": zod.string(),
+  "status": zod.enum(['queued', 'processing', 'completed', 'failed']),
+  "incident_id": zod.number().int().nullable(),
+  "error": zod.string().nullable(),
+  "created_at": zod.string()
+})
+export const ListWebhookJobsResponse = zod.array(ListWebhookJobsResponseItem)
+
+
 export const GetConfigResponse = zod.object({
   "github_token": zod.boolean(),
   "gemini_api_key": zod.boolean(),
   "slack_webhook_url": zod.boolean(),
   "github_connected": zod.boolean(),
-  "gemini_connected": zod.boolean()
+  "gemini_connected": zod.boolean(),
+  "sentry_webhook_configured": zod.boolean()
 })
 
 
@@ -39,7 +166,7 @@ export const ListIncidentsResponseItem = zod.object({
   "branch": zod.string(),
   "stack_trace": zod.string(),
   "error_type": zod.string(),
-  "status": zod.enum(['active', 'resolved']),
+  "status": zod.enum(['active', 'resolved', 'draft_pr_opened']),
   "created_at": zod.string(),
   "elapsed_seconds": zod.number(),
   "simulated": zod.boolean(),
@@ -52,8 +179,13 @@ export const ListIncidentsResponseItem = zod.object({
   "patched_code_snippet": zod.string(),
   "full_patched_file": zod.string(),
   "file_path": zod.string(),
-  "warnings": zod.array(zod.string())
-})
+  "warnings": zod.array(zod.string()),
+  "source_commit_sha": zod.string().nullish(),
+  "suspect_author_login": zod.string().nullish()
+}),
+  "pr_url": zod.string().nullable(),
+  "slack_status": zod.enum(['not_configured', 'not_sent', 'sent', 'failed']),
+  "slack_error": zod.string().nullable()
 })
 export const ListIncidentsResponse = zod.array(ListIncidentsResponseItem)
 
@@ -80,7 +212,7 @@ export const AnalyzeIncidentResponse = zod.object({
   "branch": zod.string(),
   "stack_trace": zod.string(),
   "error_type": zod.string(),
-  "status": zod.enum(['active', 'resolved']),
+  "status": zod.enum(['active', 'resolved', 'draft_pr_opened']),
   "created_at": zod.string(),
   "elapsed_seconds": zod.number(),
   "simulated": zod.boolean(),
@@ -93,8 +225,13 @@ export const AnalyzeIncidentResponse = zod.object({
   "patched_code_snippet": zod.string(),
   "full_patched_file": zod.string(),
   "file_path": zod.string(),
-  "warnings": zod.array(zod.string())
-})
+  "warnings": zod.array(zod.string()),
+  "source_commit_sha": zod.string().nullish(),
+  "suspect_author_login": zod.string().nullish()
+}),
+  "pr_url": zod.string().nullable(),
+  "slack_status": zod.enum(['not_configured', 'not_sent', 'sent', 'failed']),
+  "slack_error": zod.string().nullable()
 })
 
 
@@ -112,7 +249,7 @@ export const UpdateIncidentResponse = zod.object({
   "branch": zod.string(),
   "stack_trace": zod.string(),
   "error_type": zod.string(),
-  "status": zod.enum(['active', 'resolved']),
+  "status": zod.enum(['active', 'resolved', 'draft_pr_opened']),
   "created_at": zod.string(),
   "elapsed_seconds": zod.number(),
   "simulated": zod.boolean(),
@@ -125,8 +262,13 @@ export const UpdateIncidentResponse = zod.object({
   "patched_code_snippet": zod.string(),
   "full_patched_file": zod.string(),
   "file_path": zod.string(),
-  "warnings": zod.array(zod.string())
-})
+  "warnings": zod.array(zod.string()),
+  "source_commit_sha": zod.string().nullish(),
+  "suspect_author_login": zod.string().nullish()
+}),
+  "pr_url": zod.string().nullable(),
+  "slack_status": zod.enum(['not_configured', 'not_sent', 'sent', 'failed']),
+  "slack_error": zod.string().nullable()
 })
 
 

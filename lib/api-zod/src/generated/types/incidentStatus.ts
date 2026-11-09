@@ -12,4 +12,5 @@ export type IncidentStatus = typeof IncidentStatus[keyof typeof IncidentStatus];
 export const IncidentStatus = {
   active: 'active',
   resolved: 'resolved',
+  draft_pr_opened: 'draft_pr_opened',
 } as const;

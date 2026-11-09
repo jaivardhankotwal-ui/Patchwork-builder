@@ -3,17 +3,20 @@ export const connectors = new ReplitConnectors();
 export class ServiceError extends Error {
   constructor(message: string, public status = 422) { super(message); }
 }
-export async function github(path: string): Promise<any> {
+export async function github(path: string, options: {method?: string; body?: unknown} = {}): Promise<any> {
   const response = await (process.env.GITHUB_TOKEN
     ? fetch(`https://api.github.com${path}`, {
-        headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, Accept: "application/vnd.github+json" },
+        method: options.method || "GET",
+        body: options.body === undefined ? undefined : JSON.stringify(options.body),
+        headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
         signal: AbortSignal.timeout(12000),
       })
-    : connectors.proxy("github-source-control", path, { headers: { Accept: "application/vnd.github+json" } }));
+    : connectors.proxy("github-source-control", path, { ...options, headers: { Accept: "application/vnd.github+json" } }));
   if (!response.ok) throw new ServiceError(
     response.status === 404 ? "Repository, branch or source file not found. Check the path and GitHub access."
       : response.status === 401 || response.status === 403 ? "GitHub access denied or rate limited. Check your connection and repository permissions."
-      : `GitHub request failed (${response.status}). Try again.`, 502);
+      : response.status === 422 ? "GitHub rejected the branch, commit or draft PR. Check branch rules and repository write permissions."
+      : `GitHub request failed (${response.status}). Try again.`, response.status === 404 ? 404 : response.status === 409 ? 409 : 502);
   return response.json();
 }
 export const repoUrl = (repository: string) => `/repos/${repository.split("/").map(encodeURIComponent).join("/")}`;

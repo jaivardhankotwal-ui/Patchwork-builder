@@ -7,6 +7,7 @@ import {
 import {
   useGetConfig, getGetConfigQueryKey, useListIncidents, getListIncidentsQueryKey, useGetSummary, getGetSummaryQueryKey,
   useSimulateIncident, useAnalyzeIncident, useUpdateIncident, type Incident,
+  useSimulateSentryWebhook, useListWebhookJobs, getListWebhookJobsQueryKey,
 } from "@workspace/api-client-react";
 import { DiagnosisCard } from "@/components/diagnosis-card";
 import { errMsg, fmtSec } from "@/lib/diff";
@@ -38,6 +39,21 @@ export default function Dashboard() {
   const simulate = useSimulateIncident();
   const analyze = useAnalyzeIncident();
   const update = useUpdateIncident();
+  const webhook = useSimulateSentryWebhook();
+  const jobs = useListWebhookJobs({ query: { queryKey: getListWebhookJobsQueryKey(), refetchInterval: 10000 } });
+  const [live, setLive] = useState(false);
+  useEffect(() => {
+    const events = new EventSource(`${import.meta.env.BASE_URL}api/events`);
+    const refresh = () => {
+      qc.invalidateQueries({ queryKey: getListIncidentsQueryKey() });
+      qc.invalidateQueries({ queryKey: getGetSummaryQueryKey() });
+      qc.invalidateQueries({ queryKey: getListWebhookJobsQueryKey() });
+    };
+    events.onopen = () => { setLive(true); refresh(); };
+    events.onerror = () => setLive(false);
+    events.addEventListener("incidents", refresh);
+    return () => events.close();
+  }, [qc]);
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: getListIncidentsQueryKey() });
@@ -66,7 +82,7 @@ export default function Dashboard() {
   useEffect(() => () => { if (timer.current) window.clearInterval(timer.current); }, []);
 
   const setStatus = (inc: Incident) => {
-    update.mutate({ id: inc.id, data: { status: inc.status === "active" ? "resolved" : "active" } }, { onSuccess: invalidate });
+    update.mutate({ id: inc.id, data: { status: inc.status !== "resolved" ? "resolved" : "active" } }, { onSuccess: invalidate });
   };
 
   const list = incidents.data ?? [];
@@ -185,6 +201,22 @@ export default function Dashboard() {
                   {!cfg.gemini_connected && "Gemini is not connected — diagnosis cannot run."}
                 </p>
               )}
+              <div className="border-t border-zinc-800 pt-3 space-y-2">
+                <p className="text-xs text-zinc-300">Live Sentry webhook · <span className={live ? "text-emerald-300" : "text-orange-300"}>{live ? "live updates" : "polling fallback"}</span></p>
+                <code className="block text-[11px] text-zinc-500 break-all">POST /api/webhooks/sentry</code>
+                <p className="text-[11px] text-zinc-500">{cfg?.sentry_webhook_configured ? "External deliveries require a valid Sentry signature." : "External receiver disabled: SENTRY_WEBHOOK_SECRET is not configured."}</p>
+                <button data-testid="button-submit-webhook" disabled={!repoValid || !branchValid || !traceValid || webhook.isPending}
+                  onClick={() => webhook.mutate({ data: { repository: repo.trim(), branch: branch.trim(), stack_trace: trace, simulated: true } }, {
+                    onSuccess: () => qc.invalidateQueries({ queryKey: getListWebhookJobsQueryKey() }),
+                  })}
+                  className="flex items-center gap-2 text-xs px-3 py-2 rounded-md border border-orange-500/30 text-orange-300 hover:bg-orange-500/10 disabled:opacity-40">
+                  {webhook.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <FlaskConical className="size-3.5" />}
+                  Send simulated webhook & diagnose
+                </button>
+                <p className="text-[11px] text-zinc-500">Queues this trace as a simulation. Uses the same diagnosis pipeline and may spend AI credits.</p>
+                {webhook.isError && <ErrorLine msg={errMsg(webhook.error)} />}
+                {webhook.data && <p role="status" className="text-xs text-emerald-300">Webhook job #{webhook.data.id} accepted. Follow its progress below.</p>}
+              </div>
             </div>
           </section>
 
@@ -203,7 +235,7 @@ export default function Dashboard() {
                 <div className="h-40 rounded-lg bg-zinc-800/40 animate-pulse" />
               </div>
             ) : selected ? (
-              <DiagnosisCard incident={selected} onToggleStatus={() => setStatus(selected)} updating={update.isPending} />
+              <DiagnosisCard key={selected.id} incident={selected} onToggleStatus={() => setStatus(selected)} updating={update.isPending} />
             ) : (
               <div className="rounded-xl border border-dashed border-zinc-800 px-6 py-14 text-center">
                 <FileCode2 className="size-6 mx-auto text-zinc-600" />
@@ -212,6 +244,19 @@ export default function Dashboard() {
               </div>
             )}
             {update.isError && <ErrorLine msg={`Status update failed: ${errMsg(update.error)}`} />}
+            {(jobs.isError || !!jobs.data?.length) && (
+              <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 space-y-2" data-testid="webhook-jobs">
+                <h3 className="text-sm font-medium">Webhook activity</h3>
+                {jobs.isError && <ErrorLine msg={errMsg(jobs.error)} onRetry={() => { void jobs.refetch(); }} />}
+                {jobs.data?.map(job => (
+                  <div key={job.id} className="text-xs border-t border-zinc-800 pt-2 flex flex-wrap justify-between gap-2">
+                    <span className="text-zinc-400">#{job.id} · {job.repository} · <span className={job.status === "failed" ? "text-rose-300" : "text-orange-300"}>{job.status}</span></span>
+                    {job.incident_id && <button className="text-emerald-300 underline" onClick={() => setSelectedId(job.incident_id)}>View diagnosis</button>}
+                    {job.error && <p role="alert" className="w-full text-rose-300">{job.error}</p>}
+                  </div>
+                ))}
+              </section>
+            )}
 
             <History list={list} loading={incidents.isLoading} error={incidents.isError ? errMsg(incidents.error) : null}
               onRetry={() => incidents.refetch()} fetching={incidents.isFetching}
@@ -241,7 +286,7 @@ function History(p: {
   const rows = useMemo(() => {
     const s = q.toLowerCase();
     return p.list
-      .filter((i) => filter === "all" || i.status === filter)
+      .filter((i) => filter === "all" || (filter === "active" ? i.status !== "resolved" : i.status === filter))
       .filter((i) => !s || [i.repository, i.error_type, i.diagnosis.file_path, i.diagnosis.root_cause_summary, i.diagnosis.suspect_author ?? ""].some((f) => f.toLowerCase().includes(s)))
       .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
   }, [p.list, q, filter]);
@@ -302,10 +347,10 @@ function History(p: {
                   <td className="px-2 py-2.5 text-zinc-500 whitespace-nowrap">{formatDistanceToNow(new Date(i.created_at), { addSuffix: true })}</td>
                   <td className="px-4 py-2.5 text-right">
                     <button onClick={(e) => { e.stopPropagation(); p.onToggle(i); }} disabled={p.updatingId === i.id} data-testid={`button-status-${i.id}`}
-                      title={i.status === "active" ? "Mark resolved (manual)" : "Reopen"}
+                      title={i.status !== "resolved" ? "Mark resolved (manual)" : "Reopen"}
                       className={`inline-flex items-center gap-1 px-2 py-1 rounded border transition-colors disabled:opacity-50 ${i.status === "active" ? "border-orange-500/30 text-orange-300 hover:bg-orange-500/10" : "border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10"}`}>
                       {p.updatingId === i.id ? <Loader2 className="size-3 animate-spin" /> : i.status === "active" ? <Play className="size-3" /> : <CheckCircle2 className="size-3" />}
-                      {i.status}
+                      {i.status === "draft_pr_opened" ? "Draft PR Opened" : i.status}
                       {i.status === "resolved" && <RotateCcw className="size-3 opacity-50" />}
                     </button>
                   </td>

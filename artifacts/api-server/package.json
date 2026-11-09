@@ -7,7 +7,8 @@
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "esbuild src/lib/guardrails.test.ts --bundle --platform=node --format=cjs --external:pg-native --outfile=dist/guardrails.test.cjs && node --test dist/guardrails.test.cjs"
   },
   "dependencies": {
     "@google/genai": "^3.0.0",

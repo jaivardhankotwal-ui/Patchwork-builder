@@ -30,10 +30,12 @@ Production incident diagnosis using GitHub source/commit history and Gemini, wit
 
 ## Architecture decisions
 
-- No automatic commits or deployments: generated patches must be reviewed.
+- Draft PR creation is an explicit human action. It may create a branch and commit the proposed file but never merges or deploys. The current base-file content must match the diagnosis snapshot.
 - No authentication was requested. This is a single shared workspace; add access control before publicly exposing private repository contents or incidents.
 - Under 60 seconds is a target, dependent on provider latency and source size, not a guarantee.
-- Slack is only a configuration indicator in the supplied scope, not an outgoing notification integration.
+- Slack alerts run after diagnosis and draft PR creation; delivery failures are persisted separately and never discard a diagnosis or PR.
+- External Sentry webhooks require raw-body HMAC SHA256 verification with `SENTRY_WEBHOOK_SECRET`. A durable database queue processes accepted deliveries and deduplicates identical signed bodies.
+- See `docs/webhooks.md` for receiver payloads, Slack setup and safe simulation.
 
 ## Product
 

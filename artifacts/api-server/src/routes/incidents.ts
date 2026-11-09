@@ -3,10 +3,10 @@ import { db, incidentsTable } from "@workspace/db";
 import { desc, eq } from "drizzle-orm";
 import { AnalyzeIncidentBody, AnalyzeIncidentResponse, SimulateIncidentBody, UpdateIncidentBody, UpdateIncidentParams, ListIncidentsResponse, GetSummaryResponse } from "@workspace/api-zod";
 import { github, sourceFor, treeFor, ServiceError } from "../lib/github";
-import { diagnose } from "../lib/diagnose";
+import { runAnalysis } from "../lib/incident-service";
+import { notifyDashboard } from "../lib/incident-events";
 
 const router: IRouter = Router();
-let inFlight = false;
 router.get("/config", async (_req, res) => {
   let connected = false;
   try { await github("/user"); connected = true; } catch {}
@@ -15,6 +15,7 @@ router.get("/config", async (_req, res) => {
     slack_webhook_url: !!process.env.SLACK_WEBHOOK_URL,
     github_connected: !!process.env.GITHUB_TOKEN || connected,
     gemini_connected: !!process.env.GEMINI_API_KEY || !!(process.env.AI_INTEGRATIONS_GEMINI_BASE_URL && process.env.AI_INTEGRATIONS_GEMINI_API_KEY),
+    sentry_webhook_configured: !!process.env.SENTRY_WEBHOOK_SECRET,
   });
 });
 router.get("/incidents", async (_req, res) => {
@@ -22,7 +23,7 @@ router.get("/incidents", async (_req, res) => {
 });
 router.get("/summary", async (_req, res) => {
   const rows = await db.select({status: incidentsTable.status, seconds: incidentsTable.elapsed_seconds}).from(incidentsTable);
-  res.json(GetSummaryResponse.parse({ total: rows.length, active: rows.filter(x => x.status === "active").length,
+  res.json(GetSummaryResponse.parse({ total: rows.length, active: rows.filter(x => x.status !== "resolved").length,
     resolved: rows.filter(x => x.status === "resolved").length,
     average_seconds: rows.length ? rows.reduce((n,x) => n+x.seconds,0)/rows.length : 0 }));
 });
@@ -46,24 +47,17 @@ router.post("/simulate", async (req, res) => {
 router.post("/incidents", async (req, res) => {
   const body = AnalyzeIncidentBody.safeParse(req.body);
   if (!body.success) { res.status(400).json({error: "Provide a valid repository, branch and stack trace (10–50,000 characters)."}); return; }
-  if (inFlight) { res.status(429).json({error: "An analysis is already running. Please wait for it to finish."}); return; }
-  inFlight = true;
-  const start = Date.now();
-  try {
-    const analysis = await diagnose(body.data);
-    const [row] = await db.insert(incidentsTable).values({
-      ...body.data, ...analysis, status: "active", created_at: new Date().toISOString(),
-      elapsed_seconds: Math.round((Date.now()-start)/100)/10,
-    }).returning();
-    res.status(201).json(AnalyzeIncidentResponse.parse(row));
-  } finally { inFlight = false; }
+  res.status(201).json(await runAnalysis(body.data));
 });
 router.patch("/incidents/:id", async (req, res) => {
   const params = UpdateIncidentParams.safeParse(req.params);
   const body = UpdateIncidentBody.safeParse(req.body);
   if (!params.success || !body.success) { res.status(400).json({error:"Invalid incident or status."}); return; }
-  const [row] = await db.update(incidentsTable).set(body.data).where(eq(incidentsTable.id, params.data.id)).returning();
+  const [existing] = await db.select().from(incidentsTable).where(eq(incidentsTable.id, params.data.id));
+  const status = body.data.status === "active" && existing?.pr_url ? "draft_pr_opened" : body.data.status;
+  const [row] = await db.update(incidentsTable).set({ status }).where(eq(incidentsTable.id, params.data.id)).returning();
   if (!row) { res.status(404).json({error:"Incident not found."}); return; }
   res.json(AnalyzeIncidentResponse.parse(row));
+  notifyDashboard();
 });
 export default router;

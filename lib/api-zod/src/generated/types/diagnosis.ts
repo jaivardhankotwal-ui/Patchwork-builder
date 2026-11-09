@@ -18,4 +18,8 @@ export interface Diagnosis {
   full_patched_file: string;
   file_path: string;
   warnings: string[];
+  /** @nullable */
+  source_commit_sha?: string | null;
+  /** @nullable */
+  suspect_author_login?: string | null;
 }

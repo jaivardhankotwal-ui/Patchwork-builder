@@ -12,4 +12,5 @@ export interface Config {
   slack_webhook_url: boolean;
   github_connected: boolean;
   gemini_connected: boolean;
+  sentry_webhook_configured: boolean;
 }

@@ -11,6 +11,38 @@ export interface Config {
   slack_webhook_url: boolean;
   github_connected: boolean;
   gemini_connected: boolean;
+  sentry_webhook_configured: boolean;
+}
+
+export type SentryInputData = { [key: string]: unknown };
+
+export interface SentryInput {
+  repository?: string;
+  branch?: string;
+  stack_trace?: string;
+  data?: SentryInputData;
+  [key: string]: unknown;
+ }
+
+export type WebhookJobStatus = typeof WebhookJobStatus[keyof typeof WebhookJobStatus];
+
+
+export const WebhookJobStatus = {
+  queued: 'queued',
+  processing: 'processing',
+  completed: 'completed',
+  failed: 'failed',
+} as const;
+
+export interface WebhookJob {
+  id: number;
+  repository: string;
+  status: WebhookJobStatus;
+  /** @nullable */
+  incident_id: number | null;
+  /** @nullable */
+  error: string | null;
+  created_at: string;
 }
 
 export interface RepositoryInput {
@@ -61,6 +93,10 @@ export interface Diagnosis {
   full_patched_file: string;
   file_path: string;
   warnings: string[];
+  /** @nullable */
+  source_commit_sha?: string | null;
+  /** @nullable */
+  suspect_author_login?: string | null;
 }
 
 export type IncidentStatus = typeof IncidentStatus[keyof typeof IncidentStatus];
@@ -69,6 +105,17 @@ export type IncidentStatus = typeof IncidentStatus[keyof typeof IncidentStatus];
 export const IncidentStatus = {
   active: 'active',
   resolved: 'resolved',
+  draft_pr_opened: 'draft_pr_opened',
+} as const;
+
+export type IncidentSlackStatus = typeof IncidentSlackStatus[keyof typeof IncidentSlackStatus];
+
+
+export const IncidentSlackStatus = {
+  not_configured: 'not_configured',
+  not_sent: 'not_sent',
+  sent: 'sent',
+  failed: 'failed',
 } as const;
 
 export interface Incident {
@@ -82,6 +129,11 @@ export interface Incident {
   elapsed_seconds: number;
   simulated: boolean;
   diagnosis: Diagnosis;
+  /** @nullable */
+  pr_url: string | null;
+  slack_status: IncidentSlackStatus;
+  /** @nullable */
+  slack_error: string | null;
 }
 
 export interface Summary {
