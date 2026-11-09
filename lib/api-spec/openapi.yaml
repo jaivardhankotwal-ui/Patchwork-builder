@@ -11,6 +11,90 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /config:
+    get:
+      operationId: getConfig
+      responses:
+        "200":
+          description: Connection status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Config"
+  /simulate:
+    post:
+      operationId: simulateIncident
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RepositoryInput"
+      responses:
+        "200":
+          description: Synthetic trace using a real repository path
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Simulation"
+  /incidents:
+    get:
+      operationId: listIncidents
+      responses:
+        "200":
+          description: Incident history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Incident"
+    post:
+      operationId: analyzeIncident
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IncidentInput"
+      responses:
+        "201":
+          description: Completed diagnosis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Incident"
+  /incidents/{id}:
+    patch:
+      operationId: updateIncident
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IncidentUpdate"
+      responses:
+        "200":
+          description: Updated incident
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Incident"
+  /summary:
+    get:
+      operationId: getSummary
+      responses:
+        "200":
+          description: Dashboard totals
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Summary"
   /healthz:
     get:
       operationId: healthCheck
@@ -26,6 +110,77 @@ paths:
                 $ref: "#/components/schemas/HealthStatus"
 components:
   schemas:
+    Config:
+      type: object
+      required: [github_token, gemini_api_key, slack_webhook_url, github_connected, gemini_connected]
+      properties:
+        github_token: { type: boolean }
+        gemini_api_key: { type: boolean }
+        slack_webhook_url: { type: boolean }
+        github_connected: { type: boolean }
+        gemini_connected: { type: boolean }
+    RepositoryInput:
+      type: object
+      required: [repository, branch]
+      properties:
+        repository: { type: string, pattern: '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$' }
+        branch: { type: string, minLength: 1, maxLength: 250 }
+    IncidentInput:
+      allOf:
+        - $ref: "#/components/schemas/RepositoryInput"
+        - type: object
+          required: [stack_trace]
+          properties:
+            stack_trace: { type: string, minLength: 10, maxLength: 50000 }
+            simulated: { type: boolean, default: false }
+    Simulation:
+      type: object
+      required: [stack_trace, file_path]
+      properties:
+        stack_trace: { type: string }
+        file_path: { type: string }
+    IncidentUpdate:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [active, resolved] }
+    Diagnosis:
+      type: object
+      required: [root_cause_summary, suspect_commit_sha, suspect_author, confidence_score, original_code_snippet, patched_code_snippet, full_patched_file, file_path, warnings]
+      properties:
+        root_cause_summary: { type: string }
+        suspect_commit_sha: { type: [string, "null"] }
+        suspect_author: { type: [string, "null"] }
+        confidence_score: { type: number }
+        original_code_snippet: { type: string }
+        patched_code_snippet: { type: string }
+        full_patched_file: { type: string }
+        file_path: { type: string }
+        warnings:
+          type: array
+          items: { type: string }
+    Incident:
+      type: object
+      required: [id, repository, branch, stack_trace, error_type, status, created_at, elapsed_seconds, simulated, diagnosis]
+      properties:
+        id: { type: integer }
+        repository: { type: string }
+        branch: { type: string }
+        stack_trace: { type: string }
+        error_type: { type: string }
+        status: { type: string, enum: [active, resolved] }
+        created_at: { type: string }
+        elapsed_seconds: { type: number }
+        simulated: { type: boolean }
+        diagnosis: { $ref: "#/components/schemas/Diagnosis" }
+    Summary:
+      type: object
+      required: [total, active, resolved, average_seconds]
+      properties:
+        total: { type: integer }
+        active: { type: integer }
+        resolved: { type: integer }
+        average_seconds: { type: number }
     HealthStatus:
       type: object
       properties:

@@ -1,0 +1,1 @@
+- [Patchwork scope](patchwork-scope.md) — diagnosis target, review-only patches, and truthful managed-connection versus environment status.

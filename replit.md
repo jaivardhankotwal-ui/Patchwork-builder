@@ -1,6 +1,6 @@
-# [Project name]
+# Patchwork
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Production incident diagnosis using GitHub source/commit history and Gemini, with reviewable patches and PostgreSQL incident history.
 
 ## Run & Operate
 
@@ -22,11 +22,18 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/patchwork` — React dashboard.
+- `artifacts/api-server/src/lib/diagnose.ts` — source context, Gemini diagnosis, patch validation.
+- `artifacts/api-server/src/lib/github.ts` — managed connector or explicit token access.
+- `lib/api-spec/openapi.yaml` — API contract; regenerate clients after changes.
+- `lib/db/src/schema/incidents.ts` — persisted incident records.
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- No automatic commits or deployments: generated patches must be reviewed.
+- No authentication was requested. This is a single shared workspace; add access control before publicly exposing private repository contents or incidents.
+- Under 60 seconds is a target, dependent on provider latency and source size, not a guarantee.
+- Slack is only a configuration indicator in the supplied scope, not an outgoing notification integration.
 
 ## Product
 

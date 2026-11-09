@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Patchwork"
+description = "AI production incident diagnosis with GitHub commit context, reviewable Gemini patches, and persistent incident history."
+version = "1.0.0"
+id = "artifacts/patchwork"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19953
+
+[services.development]
+run = "pnpm --filter @workspace/patchwork run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/patchwork", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/patchwork/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19953"
+BASE_PATH = "/"
