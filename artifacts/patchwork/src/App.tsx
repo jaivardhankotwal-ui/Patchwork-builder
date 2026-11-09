@@ -5,6 +5,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import Dashboard from '@/pages/dashboard';
+import { StartupIntro } from '@/components/startup-intro';
 import {
   Route,
   Switch,
@@ -36,10 +37,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        <StartupIntro>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
           <Router />
         </WouterRouter>
         <Toaster />
+        </StartupIntro>
       </TooltipProvider>
     </QueryClientProvider>
   );
