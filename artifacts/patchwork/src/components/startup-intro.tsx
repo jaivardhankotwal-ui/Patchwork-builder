@@ -1,10 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { DragonMark } from "@/components/dragon-mark";
+import { FullBodyDragon } from "@/components/full-body-dragon";
 import { useReducedMotion } from "@/lib/reduced-motion";
 import "./startup-intro.css";
 
 const SESSION_KEY = "patchwork.intro.document";
-const DURATION = 3600;
+const DURATION = 3800;
 
 // A refresh creates a new document/timeOrigin. Route changes, visibility changes
 // and React remounts do not. Keep the session flag tied to this document so a
@@ -27,14 +27,14 @@ const SNIPPETS = ["0101", "git diff", "def fix():", ">>> PATCH", "{status: 200}"
 // Deterministic particle field: bounded count, fixed values (no Math.random).
 const PARTICLES = Array.from({ length: 18 }, (_, i) => {
   const t = i / 17;
-  const spread = Math.sin(i * 2.399) * 70;
+  const spread = Math.sin(i * 2.399) * 46;
   return {
     text: SNIPPETS[i % SNIPPETS.length],
     x: Math.round(60 + t * 340 + (i % 3) * 18),
     y: Math.round(spread * (0.4 + t)),
     r: Math.round(Math.sin(i * 1.7) * 14),
-    cx: Math.round(150 - t * 40),
-    d: 1150 + (i % 9) * 120,
+    cx: Math.round(200 + t * 60),
+    d: 1250 + (i % 9) * 110,
   };
 });
 
@@ -98,7 +98,7 @@ export function StartupIntro({ children }: { children: ReactNode }) {
         <div key={run} className={`intro-root ${reduced ? "intro-reduced" : ""}`} data-testid="startup-intro"
           role="dialog" aria-modal="true" aria-label="Starting Patchwork">
           <div className="intro-shake" aria-hidden="true"><div className="intro-stage">
-            <div className="intro-dragon"><div className="intro-dragon-lunge"><div className="intro-dragon-fade"><DragonMark size={240} /></div></div></div>
+            <div className="intro-dragon"><div className="intro-dragon-fly"><FullBodyDragon />
             {!reduced && (
               <div className="intro-flame">
                 <span className="intro-flame-ribbon" />
@@ -110,9 +110,15 @@ export function StartupIntro({ children }: { children: ReactNode }) {
                 ))}
               </div>
             )}
+            </div></div>
             <div className="intro-brand">
               <div className="intro-word">PATCHWORK</div>
               <div className="intro-caption">incident → evidence → patch</div>
+              <div className="intro-badges">
+                <span className="intro-badge">AI ASSISTED</span>
+                <span className="intro-badge">HUMAN REVIEW REQUIRED</span>
+                <span className="intro-badge">DRAFT PR ONLY</span>
+              </div>
             </div>
           </div></div>
           <button ref={skipRef} type="button" className="intro-skip" onClick={finish} data-testid="button-skip-intro">

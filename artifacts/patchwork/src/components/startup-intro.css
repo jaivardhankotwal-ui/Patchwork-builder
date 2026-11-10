@@ -1,77 +1,76 @@
-/* Timeline 3600ms: 0–1100 ambush lunge · 1100–2700 jaw + code-breath · 2700–3600 brand reveal */
+/* Timeline 3800ms (JS DURATION 3800): 0–1200 swoop & dock left · 1200–2600 jaw + code-breath · 2600–3800 brand reveal, exit fade 3300–3800 */
 .intro-root {
-  --dw: min(220px, 34vw);
-  position: fixed; inset: 0; z-index: 10000; background: #050807; overflow: hidden;
-  display: grid; place-items: center; color: #eafff9;
-  animation: intro-out 900ms 2700ms ease both;
+  --bw: min(560px, 50vw);
+  --dock-x: -22vw; --dock-y: 0px; --dock-s: 1;
+  position: fixed; inset: 0; z-index: 10000; background: #050807; overflow: hidden; color: #eafff9;
+  animation: intro-out 500ms 3300ms ease both;
 }
 .intro-root::after {
   content: ''; position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(600px 360px at 40% 50%, rgb(0 255 204 / .08), transparent 70%);
+  background: radial-gradient(700px 420px at 35% 50%, rgb(0 255 204 / .08), transparent 70%);
 }
-@keyframes intro-out { 0%,55% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes intro-out { from { opacity: 1; } to { opacity: 0; } }
 
-/* Shake owns its own wrapper transform */
-.intro-shake { animation: intro-shake 340ms 900ms linear both; }
+.intro-shake { position: absolute; inset: 0; animation: intro-shake 300ms 1150ms linear both; }
 @keyframes intro-shake {
-  0%,100% { transform: translate(0,0); } 15% { transform: translate(-7px,4px); } 30% { transform: translate(6px,-5px); }
-  45% { transform: translate(-4px,-3px); } 60% { transform: translate(3px,3px); } 80% { transform: translate(-1px,1px); }
+  0%,100% { transform: translate(0,0); } 20% { transform: translate(-6px,4px); } 40% { transform: translate(5px,-4px); }
+  60% { transform: translate(-3px,-2px); } 80% { transform: translate(2px,2px); }
 }
-.intro-stage { position: relative; width: min(760px, 94vw); height: min(420px, 70vh); }
-.intro-stage::before { /* impact shockwave */
-  content: ''; position: absolute; left: 50%; top: 50%; width: 220px; height: 220px; margin: -110px 0 0 -110px;
-  border-radius: 50%; border: 2px solid rgb(0 255 204 / .7); opacity: 0; pointer-events: none;
-  animation: intro-wave 600ms 900ms ease-out forwards;
-}
-@keyframes intro-wave { 0% { opacity: .9; transform: scale(.3); } 100% { opacity: 0; transform: scale(3.2); } }
+.intro-stage { position: absolute; inset: 0; }
 
-/* Position wrapper: centered during ambush, then mouth slides to flame origin */
-.intro-dragon { position: absolute; left: 50%; top: 50%; width: var(--dw); transform: translate(-50%, -50%);
-  animation: intro-dragon-move 320ms 1100ms cubic-bezier(.5,0,.2,1) forwards; }
-@keyframes intro-dragon-move { to { left: 0; transform: translate(0, -50%); } }
-.intro-dragon-lunge { transform-origin: 50% 50%; animation: intro-lunge 1100ms cubic-bezier(.7,0,.2,1.2) both; }
-@keyframes intro-lunge {
-  0% { opacity: 0; transform: scale(.08) rotate(-16deg); }
-  20% { opacity: .6; }
-  78% { opacity: 1; transform: scale(1.15) rotate(3deg); }
-  100% { opacity: 1; transform: scale(1) rotate(0); }
+/* Dock wrapper owns the flight transform only */
+.intro-dragon { position: absolute; left: 50%; top: 50%; width: var(--bw); }
+.intro-dragon-fly {
+  position: relative; transform-origin: 50% 50%;
+  transform: translate(calc(-50% + var(--dock-x)), calc(-50% + var(--dock-y))) scale(var(--dock-s));
+  animation: intro-fly 1200ms cubic-bezier(.5,0,.15,1) both;
 }
-.intro-dragon-fade { animation: intro-dissolve 700ms 2700ms cubic-bezier(.6,0,.3,1) forwards; }
-@keyframes intro-dissolve { to { opacity: 0; transform: scale(.7) rotate(25deg); } }
-.intro-dragon .dragon-mark { width: 100%; height: auto; }
+@keyframes intro-fly {
+  0% { opacity: 0; transform: translate(-50%, -62%) scale(.12); }
+  25% { opacity: .7; }
+  70% { opacity: 1; transform: translate(calc(-50% + var(--dock-x) * .8), calc(-50% + var(--dock-y) - 4vh)) scale(calc(var(--dock-s) * 1.08)); }
+  100% { opacity: 1; transform: translate(calc(-50% + var(--dock-x)), calc(-50% + var(--dock-y))) scale(var(--dock-s)); }
+}
+/* Wings & tail own their own transforms */
+.intro-root .fb-wing { animation: intro-flap 400ms ease-in-out 3, intro-wing-idle 2400ms 1200ms ease-in-out infinite; }
+.intro-root .fb-wing-far { animation-delay: 60ms, 1260ms; }
+@keyframes intro-flap { 0%,100% { transform: rotate(0); } 50% { transform: rotate(-16deg) scaleY(.82); } }
+@keyframes intro-wing-idle { 0%,100% { transform: rotate(0); } 50% { transform: rotate(-4deg); } }
+.intro-root .fb-tail { animation: intro-tail 1300ms ease-in-out infinite alternate; }
+@keyframes intro-tail { from { transform: rotate(-5deg); } to { transform: rotate(6deg); } }
 
 .intro-root .dm-draw { stroke-dasharray: 1; stroke-dashoffset: 1; fill-opacity: 0;
-  animation: intro-draw 800ms 100ms cubic-bezier(.6,0,.3,1) both, intro-fill 300ms 700ms ease forwards; }
+  animation: intro-draw 800ms 100ms cubic-bezier(.6,0,.3,1) both, intro-fill 300ms 800ms ease forwards; }
 @keyframes intro-draw { to { stroke-dashoffset: 0; } }
 @keyframes intro-fill { to { fill-opacity: 1; } }
-.intro-root .dm-eye { opacity: 0; animation: intro-ignite 300ms 850ms ease-out forwards; }
+.intro-root .dm-eye { opacity: 0; animation: intro-ignite 300ms 950ms ease-out forwards; }
 @keyframes intro-ignite { 0% { opacity: 0; } 60% { opacity: 1; fill: #ffffff; } 100% { opacity: 1; } }
-.intro-root .dm-jaw { animation: intro-jaw 1600ms 1100ms cubic-bezier(.3,.7,.3,1) both; }
-@keyframes intro-jaw { 0% { transform: rotate(0); } 18%,85% { transform: rotate(30deg); } 100% { transform: rotate(6deg); } }
+.intro-root .dm-jaw { animation: intro-jaw 1400ms 1200ms cubic-bezier(.3,.7,.3,1) both; }
+@keyframes intro-jaw { 0% { transform: rotate(0); } 15%,85% { transform: rotate(30deg); } 100% { transform: rotate(6deg); } }
 
-/* flame — origin at the mouth (viewBox x≈108/120, y≈60/120) after the move */
-.intro-flame { position: absolute; left: calc(var(--dw) * .88); top: 51%; width: 0; height: 0; }
+/* Flame origin = mouth: head at (250,10)+(108,60) in 420x280 viewBox */
+.intro-flame { position: absolute; left: 85.2%; top: 25%; width: 0; height: 0; }
 .intro-flame-ribbon {
-  position: absolute; left: 0; top: -45px; width: min(520px, 62vw); height: 90px;
+  position: absolute; left: 0; top: -40px; width: min(560px, 48vw); height: 80px;
   background: linear-gradient(90deg, #eafff9, #00ffcc 12%, rgb(16 185 129 / .4) 65%, transparent);
   clip-path: polygon(0 50%, 23% 32%, 16% 12%, 45% 29%, 70% 0, 62% 34%, 100% 40%, 73% 58%, 88% 90%, 50% 71%, 24% 94%, 32% 66%);
   transform-origin: left center; opacity: 0; filter: drop-shadow(0 0 10px #00ffcc);
-  animation: intro-ribbon 1600ms 1250ms ease both;
+  animation: intro-ribbon 1400ms 1300ms ease both;
 }
-.intro-flame-ribbon-secondary { top: -27px; height: 60px; mix-blend-mode: screen; animation-delay: 1320ms; }
+.intro-flame-ribbon-secondary { top: -24px; height: 48px; mix-blend-mode: screen; animation-delay: 1380ms; }
 @keyframes intro-ribbon {
   0% { opacity: 0; transform: scaleX(.05) scaleY(.4); }
-  20% { opacity: .6; transform: scaleX(.7) scaleY(.8); }
-  45% { opacity: .4; transform: scaleX(1) scaleY(1.2); }
-  70% { opacity: .6; transform: scaleX(.9) scaleY(.7); }
+  20% { opacity: .65; transform: scaleX(.7) scaleY(.8); }
+  50% { opacity: .45; transform: scaleX(1) scaleY(1.2); }
+  75% { opacity: .6; transform: scaleX(.9) scaleY(.7); }
   100% { opacity: 0; transform: scaleX(1.2) scaleY(.15); }
 }
 .intro-p {
   position: absolute; left: 0; top: 0; white-space: nowrap;
-  font-family: var(--app-font-mono); font-size: clamp(9px, 1.6vw, 13px); font-weight: 600;
+  font-family: var(--app-font-mono); font-size: clamp(9px, 1.4vw, 13px); font-weight: 600;
   color: #7dffe3; text-shadow: 0 0 8px #00ffcc, 0 0 18px rgb(16 185 129 / .7);
   opacity: 0; will-change: transform, opacity;
-  animation: intro-breathe calc(2700ms - var(--d)) var(--d) cubic-bezier(.2,.6,.3,1) both, intro-swirl 800ms 2700ms cubic-bezier(.6,0,.3,1) forwards;
+  animation: intro-breathe calc(2600ms - var(--d)) var(--d) cubic-bezier(.2,.6,.3,1) backwards, intro-swirl 600ms 2600ms cubic-bezier(.6,0,.3,1) forwards;
 }
 @keyframes intro-breathe {
   0% { opacity: 0; transform: translate(0,0) scale(.4); }
@@ -80,19 +79,40 @@
 }
 @keyframes intro-swirl {
   0% { transform: translate(var(--x), var(--y)) rotate(var(--r)); opacity: .9; }
-  100% { transform: translate(var(--cx), 0) rotate(360deg) scale(.2); opacity: 0; }
+  100% { transform: translate(var(--cx), 0) scale(.2); opacity: 0; }
 }
 
-.intro-brand { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 10px; pointer-events: none; }
+.intro-brand {
+  position: absolute; left: 72%; top: 50%; width: min(440px, 40vw); transform: translate(-50%, -50%);
+  display: grid; justify-items: center; text-align: center; gap: 12px; pointer-events: none;
+}
 .intro-word {
-  font-family: var(--app-font-mono); font-weight: 700; letter-spacing: .18em;
-  font-size: clamp(30px, 8vw, 68px);
+  font-family: var(--app-font-mono); font-weight: 700; letter-spacing: .16em;
+  font-size: clamp(26px, 4.6vw, 64px);
   background: linear-gradient(90deg, #00ffcc, #10b981); -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 0 14px rgb(0 255 204 / .6));
-  opacity: 0; animation: intro-coalesce 500ms 2750ms cubic-bezier(.2,.7,.2,1) both;
+  opacity: 0; animation: intro-coalesce 500ms 2650ms cubic-bezier(.2,.7,.2,1) both;
 }
-.intro-caption { font-family: var(--app-font-mono); font-size: clamp(9px, 2.4vw, 12px); letter-spacing: .24em; color: #6ee7b7; opacity: 0; animation: intro-coalesce 450ms 2950ms ease both; }
-@keyframes intro-coalesce { from { opacity: 0; transform: scale(1.12); letter-spacing: .5em; } to { opacity: 1; transform: none; } }
+.intro-caption { font-family: var(--app-font-mono); font-size: clamp(10px, 1.2vw, 13px); letter-spacing: .22em; color: #6ee7b7; opacity: 0; animation: intro-coalesce 450ms 2850ms ease both; }
+@keyframes intro-coalesce { from { opacity: 0; transform: scale(1.12); letter-spacing: .4em; } to { opacity: 1; transform: none; } }
+.intro-badges { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 4px; }
+.intro-badge {
+  font-family: var(--app-font-mono); font-size: 10px; letter-spacing: .14em; padding: 4px 8px; border-radius: 4px;
+  color: #a7f3d0; border: 1px solid rgb(16 185 129 / .5); background: rgb(0 255 204 / .06);
+  opacity: 0; animation: intro-badge 350ms 3000ms ease both;
+}
+.intro-badge:nth-child(2) { animation-delay: 3080ms; }
+.intro-badge:nth-child(3) { animation-delay: 3160ms; }
+@keyframes intro-badge { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 767px) {
+  .intro-root { --bw: 88vw; --dock-x: -4vw; --dock-y: -16vh; --dock-s: .92; }
+  .intro-flame-ribbon { width: 40vw; height: 50px; top: -25px; }
+  .intro-flame-ribbon-secondary { height: 30px; top: -15px; }
+  .intro-brand { left: 54%; top: 68%; width: 86vw; }
+  .intro-word { font-size: clamp(24px, 9vw, 44px); }
+  .intro-caption { font-size: 10px; letter-spacing: .14em; }
+}
 
 .intro-skip {
   position: absolute; right: 16px; bottom: 16px; z-index: 2;
@@ -104,16 +124,13 @@
 .intro-skip:focus-visible { outline: 2px solid #00ffcc; outline-offset: 2px; }
 
 .startup-dashboard { transition: opacity 500ms ease; }
-.startup-dashboard-hidden { opacity: 0; animation: intro-dashboard-reveal 400ms 3200ms ease forwards; }
+.startup-dashboard-hidden { opacity: 0; animation: intro-dashboard-reveal 400ms 3400ms ease forwards; }
 @keyframes intro-dashboard-reveal { to { opacity: 1; } }
 
-/* Reduced motion: static dragon + brand, soft crossfade only — no lunge/shake/flames */
-.intro-reduced { animation: intro-rm-out 600ms 3000ms linear both; }
+/* Reduced motion: static full body + brand, no flight/shake/flames */
+.intro-reduced { animation: intro-rm-out 600ms 3200ms linear both; }
 @keyframes intro-rm-out { to { opacity: 0; } }
-.intro-reduced .intro-shake, .intro-reduced .intro-dragon-lunge, .intro-reduced .intro-dragon-fade,
+.intro-reduced .intro-shake, .intro-reduced .intro-dragon-fly, .intro-reduced .fb-wing, .intro-reduced .fb-tail,
 .intro-reduced .dm-draw, .intro-reduced .dm-eye, .intro-reduced .dm-jaw,
-.intro-reduced .intro-dragon, .intro-reduced .intro-word, .intro-reduced .intro-caption { animation: none; opacity: 1; transform: none; stroke-dashoffset: 0; fill-opacity: 1; }
-.intro-reduced .intro-stage::before { display: none; }
-.intro-reduced .intro-dragon { position: static; margin: 0 auto 20px; width: 140px; }
-.intro-reduced .intro-stage { display: flex; flex-direction: column; justify-content: center; height: auto; }
-.intro-reduced .intro-brand { position: static; }
+.intro-reduced .intro-word, .intro-reduced .intro-caption, .intro-reduced .intro-badge { animation: none; opacity: 1; stroke-dashoffset: 0; fill-opacity: 1; }
+.intro-reduced .fb-wing, .intro-reduced .fb-tail, .intro-reduced .dm-jaw { transform: none; }
