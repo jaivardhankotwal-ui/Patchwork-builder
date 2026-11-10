@@ -11,6 +11,7 @@ import {
 } from "@workspace/api-client-react";
 import { DiagnosisCard } from "@/components/diagnosis-card";
 import { SentrySettings } from "@/components/sentry-settings";
+import { MockQueueItems } from "@/components/mock-queue-items";
 import { DiagnosticTerminal, extractTracePath, type TerminalRun } from "@/components/diagnostic-terminal";
 import { errMsg, fmtSec } from "@/lib/diff";
 import { Typewriter } from "@/components/motion/typewriter";
@@ -286,7 +287,7 @@ export default function Dashboard() {
                 <h3 className="text-sm font-medium flex items-center gap-2"><Activity className="size-4 text-cyan-400" />Active Incidents queue</h3>
                 <p className="text-xs text-zinc-500">Incoming signed Sentry events appear here immediately, then run through Gemini in the background.</p>
                 {jobs.isLoading && <p className="text-xs text-zinc-500">Loading queue…</p>}
-                {!jobs.isLoading && !jobs.isError && !jobs.data?.length && <p className="text-xs text-zinc-500">Waiting for a Sentry delivery. Simulated deliveries are labeled separately.</p>}
+                {!jobs.isLoading && !jobs.isError && !jobs.data?.length && <p className="text-xs text-zinc-500">No live Sentry deliveries yet. The mock entries below are preview-only.</p>}
                 {jobs.isError && <ErrorLine msg={errMsg(jobs.error)} onRetry={() => { void jobs.refetch(); }} />}
                 {jobs.data?.map((job, idx) => (
                   <div key={job.id} style={{ animationDelay: `${Math.min(idx, 10) * 45}ms` }} className="pw-row-in text-xs border-t border-zinc-800 pt-2 flex flex-wrap justify-between gap-2">
@@ -296,6 +297,7 @@ export default function Dashboard() {
                     {job.error && <p role="alert" className="w-full text-rose-300">{job.error}</p>}
                   </div>
                 ))}
+                <MockQueueItems />
               </section>
             )}
 
