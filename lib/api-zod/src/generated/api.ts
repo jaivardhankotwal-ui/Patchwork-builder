@@ -31,6 +31,12 @@ export const CreateIncidentPrResponse = zod.object({
   "patched_code_snippet": zod.string(),
   "full_patched_file": zod.string(),
   "file_path": zod.string(),
+  "regression_test": zod.union([zod.object({
+  "file_path": zod.string(),
+  "content": zod.string(),
+  "run_command": zod.string(),
+  "description": zod.string()
+}),zod.null()]).optional(),
   "warnings": zod.array(zod.string()),
   "source_commit_sha": zod.string().nullish(),
   "suspect_author_login": zod.string().nullish()
@@ -64,6 +70,12 @@ export const SendIncidentSlackResponse = zod.object({
   "patched_code_snippet": zod.string(),
   "full_patched_file": zod.string(),
   "file_path": zod.string(),
+  "regression_test": zod.union([zod.object({
+  "file_path": zod.string(),
+  "content": zod.string(),
+  "run_command": zod.string(),
+  "description": zod.string()
+}),zod.null()]).optional(),
   "warnings": zod.array(zod.string()),
   "source_commit_sha": zod.string().nullish(),
   "suspect_author_login": zod.string().nullish()
@@ -188,6 +200,12 @@ export const ListIncidentsResponseItem = zod.object({
   "patched_code_snippet": zod.string(),
   "full_patched_file": zod.string(),
   "file_path": zod.string(),
+  "regression_test": zod.union([zod.object({
+  "file_path": zod.string(),
+  "content": zod.string(),
+  "run_command": zod.string(),
+  "description": zod.string()
+}),zod.null()]).optional(),
   "warnings": zod.array(zod.string()),
   "source_commit_sha": zod.string().nullish(),
   "suspect_author_login": zod.string().nullish()
@@ -234,6 +252,12 @@ export const AnalyzeIncidentResponse = zod.object({
   "patched_code_snippet": zod.string(),
   "full_patched_file": zod.string(),
   "file_path": zod.string(),
+  "regression_test": zod.union([zod.object({
+  "file_path": zod.string(),
+  "content": zod.string(),
+  "run_command": zod.string(),
+  "description": zod.string()
+}),zod.null()]).optional(),
   "warnings": zod.array(zod.string()),
   "source_commit_sha": zod.string().nullish(),
   "suspect_author_login": zod.string().nullish()
@@ -271,6 +295,12 @@ export const UpdateIncidentResponse = zod.object({
   "patched_code_snippet": zod.string(),
   "full_patched_file": zod.string(),
   "file_path": zod.string(),
+  "regression_test": zod.union([zod.object({
+  "file_path": zod.string(),
+  "content": zod.string(),
+  "run_command": zod.string(),
+  "description": zod.string()
+}),zod.null()]).optional(),
   "warnings": zod.array(zod.string()),
   "source_commit_sha": zod.string().nullish(),
   "suspect_author_login": zod.string().nullish()

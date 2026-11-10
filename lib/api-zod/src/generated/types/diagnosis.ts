@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { RegressionTest } from './regressionTest';
 
 export interface Diagnosis {
   root_cause_summary: string;
@@ -17,6 +18,7 @@ export interface Diagnosis {
   patched_code_snippet: string;
   full_patched_file: string;
   file_path: string;
+  regression_test?: RegressionTest | null;
   warnings: string[];
   /** @nullable */
   source_commit_sha?: string | null;

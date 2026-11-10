@@ -8,6 +8,10 @@ Patchwork reads the latest base-branch SHA, checks the diagnosed source still ma
 
 If the target file changed, re-analyze first. Older diagnoses can proceed only if their saved patch can be reversed unambiguously and the complete reconstructed original exactly matches the current file; otherwise re-analyze. Empty or inconsistent patches are rejected. The same incident returns its existing PR instead of creating duplicates; interrupted operations reuse their stored branch.
 
+New diagnoses also generate a regression test for the crash edge case, using repository test conventions when available. The **Regression test** tab beside **Code diff** shows its complete content, proposed path, rationale, and suggested run command. Neither the test nor its command is automatically executed. Review imports, dependencies and assertions, and verify that it fails before the fix and passes afterward.
+
+New draft PRs for these diagnoses include both the patched source and a new test file (in separate retry-safe commits). Existing files at the generated test path are never overwritten; if the base path already exists, re-analyze. Interrupted operations reuse identical generated files on the patch branch and reject conflicting content. Older diagnoses without tests remain readable; re-analyze to generate a test. Existing PRs are returned unchanged.
+
 The incident becomes **Draft PR Opened** and retains its GitHub link across reloads. This is an unresolved incident, not a deployed fix. Marking it resolved is a separate manual action.
 
 The connected GitHub account must have permission to create branches and pull requests in the target repository. `GITHUB_TOKEN`, when configured in Secrets, takes precedence over the managed GitHub connection.

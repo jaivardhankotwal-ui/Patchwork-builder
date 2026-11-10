@@ -15,6 +15,7 @@ export * from './incidentSlackStatus';
 export * from './incidentStatus';
 export * from './incidentUpdate';
 export * from './incidentUpdateStatus';
+export * from './regressionTest';
 export * from './repositoryInput';
 export * from './sentryInput';
 export * from './sentryInputData';

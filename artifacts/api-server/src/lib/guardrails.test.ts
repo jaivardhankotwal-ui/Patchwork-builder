@@ -6,6 +6,8 @@ import { normalizeSentry, verifySentrySignature } from "./webhook-payload";
 import { ServiceError } from "./github";
 import { slackMessage } from "./slack";
 import type { Incident } from "./incident-types";
+import { validateRegressionTest } from "./regression-test";
+import { AnalyzeIncidentResponse } from "@workspace/api-zod";
 
 const original = "function handler(x) {\n  return x.id;\n}\n";
 const patched = "function handler(x) {\n  return x?.id;\n}\n";
@@ -122,4 +124,86 @@ test("Slack has truthful attribution and only links to a PR when one exists", ()
   assert.match(withPr, /https:\/\/github.com\/example\/service\/pull\/1/);
   assert.ok(!withPr.includes("ready-to-merge"));
   assert.match(prReport({ ...fixture, simulated: true }), /SIMULATION/);
+});
+
+const regression = {
+  file_path: "tests/patchwork_handler.test.js",
+  content: 'import { handler } from "../src/index.js";\nimport { test } from "node:test";\nimport assert from "node:assert/strict";\ntest("handles missing input", () => assert.equal(handler(undefined), undefined));\n',
+  run_command: "node --test tests/patchwork_handler.test.js",
+  description: "Undefined input must not throw when the handler reads id.",
+};
+const withTest: Incident = { ...fixture, diagnosis: { ...fixture.diagnosis, regression_test: regression } };
+test("regression tests persist through the incident contract; older diagnoses remain readable", () => {
+  assert.deepEqual(AnalyzeIncidentResponse.parse(withTest).diagnosis.regression_test, regression);
+  assert.equal(AnalyzeIncidentResponse.parse(fixture).diagnosis.regression_test, undefined);
+  assert.match(prReport(withTest), /tests\/patchwork_handler\.test\.js/);
+  assert.match(prReport(withTest), /Not executed or verified/);
+});
+test("test path validation accepts pytest and JS tests but rejects unsafe paths", () => {
+  validateRegressionTest(regression, "src/index.js");
+  validateRegressionTest({ ...regression, file_path: "tests/test_checkout.py" }, "checkout.py");
+  for (const path of ["../tests/test_x.py", "/tests/test_x.py", ".github/tests/test_x.py", "tests/../test_x.py", "src/index.js", "tests//x.py", "tests/config.json"]) {
+    assert.throws(() => validateRegressionTest({ ...regression, file_path: path }, "src/index.js"), /unsafe/);
+  }
+});
+test("preflight rejects a generated test path already on the base branch", async () => {
+  await assert.rejects(() => preparePr(withTest, {
+    source: async () => original,
+    request: async path => path.includes("/contents/") ? { sha: "existing" } : { sha: "base" },
+  }), /already exists/);
+});
+test("draft PR includes fix and new test with create-only semantics", async () => {
+  const writes: { path: string; body: any }[] = [];
+  await writeDraftPr(withTest, "patchwork/test", "base", original, {
+    source: async () => original,
+    request: async (path, opts = {}) => {
+      if (opts.method === "PUT") { writes.push({ path, body: opts.body }); return {}; }
+      if (path.includes("/pulls?")) return [];
+      if (path.includes("/git/ref/")) return { object: { sha: "base" } };
+      if (path.includes("/contents/tests/")) throw new ServiceError("not found", 404);
+      if (path.includes("/contents/")) return { sha: "source-blob", content: Buffer.from(original).toString("base64") };
+      if (path.endsWith("/pulls")) {
+        assert.equal(writes.length, 2);
+        assert.equal((opts.body as { draft: boolean }).draft, true);
+        return { draft: true, html_url: "https://github.com/example/service/pull/4" };
+      }
+      throw new Error(`Unexpected ${path}`);
+    },
+  });
+  assert.equal(Buffer.from(writes[0].body.content, "base64").toString(), patched);
+  assert.equal(Buffer.from(writes[1].body.content, "base64").toString(), regression.content);
+  assert.equal(writes[1].body.sha, undefined);
+  assert.match(writes[1].path, /tests\/patchwork_handler\.test\.js$/);
+});
+test("retry after patch commit writes only the missing test, then retry after both skips all writes", async () => {
+  for (const testExists of [false, true]) {
+    const writes: string[] = [];
+    await writeDraftPr(withTest, "patchwork/retry", "base", original, {
+      source: async () => original,
+      request: async (path, opts = {}) => {
+        if (opts.method === "PUT") { writes.push(path); return {}; }
+        if (path.includes("/pulls?")) return [];
+        if (path.includes("/git/ref/")) return { object: { sha: "head" } };
+        if (path.includes("/contents/tests/")) {
+          if (!testExists) throw new ServiceError("not found", 404);
+          return { content: Buffer.from(regression.content).toString("base64") };
+        }
+        if (path.includes("/contents/")) return { content: Buffer.from(patched).toString("base64") };
+        return { draft: true, html_url: "https://github.com/example/service/pull/5" };
+      },
+    });
+    assert.equal(writes.length, testExists ? 0 : 1);
+    if (!testExists) assert.match(writes[0], /contents\/tests\//);
+  }
+});
+test("different test content on a recovery branch is never overwritten", async () => {
+  await assert.rejects(() => writeDraftPr(withTest, "patchwork/retry", "base", original, {
+    source: async () => original,
+    request: async (path, opts = {}) => {
+      assert.equal(opts.method, undefined);
+      if (path.includes("/pulls?")) return [];
+      if (path.includes("/git/ref/")) return { object: { sha: "head" } };
+      return { content: Buffer.from(path.includes("/contents/tests/") ? "// human work" : patched).toString("base64") };
+    },
+  }), /Refusing to overwrite/);
 });

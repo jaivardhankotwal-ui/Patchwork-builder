@@ -84,6 +84,13 @@ export interface IncidentUpdate {
   status: IncidentUpdateStatus;
 }
 
+export interface RegressionTest {
+  file_path: string;
+  content: string;
+  run_command: string;
+  description: string;
+}
+
 export interface Diagnosis {
   root_cause_summary: string;
   /** @nullable */
@@ -95,6 +102,7 @@ export interface Diagnosis {
   patched_code_snippet: string;
   full_patched_file: string;
   file_path: string;
+  regression_test?: RegressionTest | null;
   warnings: string[];
   /** @nullable */
   source_commit_sha?: string | null;

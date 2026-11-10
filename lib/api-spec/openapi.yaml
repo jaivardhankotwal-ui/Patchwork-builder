@@ -229,6 +229,14 @@ components:
       required: [status]
       properties:
         status: { type: string, enum: [active, resolved] }
+    RegressionTest:
+      type: object
+      required: [file_path, content, run_command, description]
+      properties:
+        file_path: { type: string }
+        content: { type: string }
+        run_command: { type: string }
+        description: { type: string }
     Diagnosis:
       type: object
       required: [root_cause_summary, suspect_commit_sha, suspect_author, confidence_score, original_code_snippet, patched_code_snippet, full_patched_file, file_path, warnings]
@@ -241,6 +249,10 @@ components:
         patched_code_snippet: { type: string }
         full_patched_file: { type: string }
         file_path: { type: string }
+        regression_test:
+          anyOf:
+            - $ref: "#/components/schemas/RegressionTest"
+            - type: "null"
         warnings:
           type: array
           items: { type: string }

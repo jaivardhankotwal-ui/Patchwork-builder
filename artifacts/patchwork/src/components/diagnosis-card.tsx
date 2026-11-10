@@ -4,6 +4,7 @@ import { useCreateIncidentPr, useSendIncidentSlack, getListIncidentsQueryKey, ge
 import { useQueryClient } from "@tanstack/react-query";
 import { DiffViewer } from "./diff-viewer";
 import { fmtSec, errMsg } from "@/lib/diff";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function DiagnosisCard({ incident, onToggleStatus, updating }: { incident: Incident; onToggleStatus: () => void; updating: boolean }) {
   const d = incident.diagnosis;
@@ -17,7 +18,7 @@ export function DiagnosisCard({ incident, onToggleStatus, updating }: { incident
     qc.invalidateQueries({ queryKey: getGetSummaryQueryKey() });
   };
   const openPr = () => {
-    if (!window.confirm(`Create a branch, commit the proposed file and open a DRAFT pull request in ${incident.repository} against ${incident.branch}? This writes to GitHub, but will not merge or deploy anything.${incident.simulated ? " This incident is simulated." : ""}`)) return;
+    if (!window.confirm(`Create a branch, commit the proposed fix${d.regression_test ? " and generated regression test (not run)" : ""} and open a DRAFT pull request in ${incident.repository} against ${incident.branch}? This writes to GitHub, but will not merge or deploy anything.${incident.simulated ? " This incident is simulated." : ""}`)) return;
     pr.mutate({ id: incident.id }, { onSuccess: refresh });
   };
   const conf = Math.max(0, Math.min(100, Math.round(d.confidence_score)));
@@ -105,7 +106,29 @@ export function DiagnosisCard({ incident, onToggleStatus, updating }: { incident
             ))}
           </div>
         </div>
-        <DiffViewer original={d.original_code_snippet} patched={d.patched_code_snippet} filePath={d.file_path} />
+        <Tabs defaultValue="diff" className="min-w-0">
+          <TabsList aria-label="Proposed changes" className="bg-zinc-950 border border-zinc-800">
+            <TabsTrigger value="diff">Code diff</TabsTrigger>
+            <TabsTrigger value="test" data-testid="tab-regression-test">Regression test</TabsTrigger>
+          </TabsList>
+          <TabsContent value="diff">
+            <DiffViewer original={d.original_code_snippet} patched={d.patched_code_snippet} filePath={d.file_path} />
+          </TabsContent>
+          <TabsContent value="test" className="space-y-3">
+            {d.regression_test ? (
+              <div className="rounded-lg border border-zinc-800 overflow-hidden">
+                <div className="p-3 bg-zinc-900 space-y-2 text-xs">
+                  <p className="font-mono text-emerald-300 break-all">{d.regression_test.file_path}</p>
+                  <p className="text-zinc-300 whitespace-pre-wrap">{d.regression_test.description}</p>
+                  <p className="text-orange-300">AI-generated · not run or verified. Review before execution.</p>
+                  <p className="text-zinc-500">Suggested command:</p>
+                  <code className="block text-zinc-300 whitespace-pre-wrap break-all">{d.regression_test.run_command}</code>
+                </div>
+                <pre data-testid="code-regression-test" className="p-4 max-h-[500px] overflow-auto text-xs font-mono text-emerald-200 bg-zinc-950"><code>{d.regression_test.content}</code></pre>
+              </div>
+            ) : <p className="p-4 text-sm text-zinc-400 border border-dashed border-zinc-800 rounded-lg">No regression test was saved with this diagnosis. Re-analyze the incident to generate a fix and its edge-case test.</p>}
+          </TabsContent>
+        </Tabs>
         <div className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-4 space-y-3">
           <div className="flex items-start gap-2">
             <ShieldAlert className="size-4 text-orange-400 shrink-0 mt-0.5" />
