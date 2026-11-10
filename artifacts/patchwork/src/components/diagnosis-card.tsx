@@ -4,6 +4,7 @@ import { useCreateIncidentPr, useSendIncidentSlack, getListIncidentsQueryKey, ge
 import { useQueryClient } from "@tanstack/react-query";
 import { DiffViewer } from "./diff-viewer";
 import { fmtSec, errMsg } from "@/lib/diff";
+import { Typewriter } from "@/components/motion/typewriter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function DiagnosisCard({ incident, onToggleStatus, updating }: { incident: Incident; onToggleStatus: () => void; updating: boolean }) {
@@ -22,7 +23,7 @@ export function DiagnosisCard({ incident, onToggleStatus, updating }: { incident
     pr.mutate({ id: incident.id }, { onSuccess: refresh });
   };
   const conf = Math.max(0, Math.min(100, Math.round(d.confidence_score)));
-  const confTone = conf >= 75 ? "bg-emerald-400" : conf >= 45 ? "bg-orange-400" : "bg-rose-400";
+  const confTone = conf >= 75 ? "bg-emerald-400" : conf >= 45 ? "bg-cyan-400" : "bg-rose-400";
 
   const copy = async () => {
     await navigator.clipboard.writeText(d.full_patched_file);
@@ -40,15 +41,15 @@ export function DiagnosisCard({ incident, onToggleStatus, updating }: { incident
   };
 
   return (
-    <section className="rise rounded-xl border border-zinc-800 bg-zinc-900/50 overflow-hidden" data-testid={`card-diagnosis-${incident.id}`}>
+    <section className="rise pw-glass rounded-xl overflow-hidden" data-testid={`card-diagnosis-${incident.id}`}>
       <header className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 border-b border-zinc-800">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="font-mono text-[11px] text-zinc-500">INC-{String(incident.id).padStart(4, "0")}</span>
           <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-300 border border-rose-500/20" data-testid="text-error-type">{incident.error_type}</span>
           {incident.simulated && (
-            <span className="flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded border border-orange-500/30 text-orange-300 bg-orange-500/10"><FlaskConical className="size-3" />Simulated trace</span>
+            <span className="flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded border border-cyan-500/30 text-cyan-300 bg-cyan-500/10"><FlaskConical className="size-3" />Simulated trace</span>
           )}
-          <span className={`text-[11px] px-1.5 py-0.5 rounded border ${incident.status === "active" ? "border-orange-500/30 text-orange-300" : "border-emerald-500/30 text-emerald-300"}`} data-testid="status-incident">
+          <span className={`text-[11px] px-1.5 py-0.5 rounded border ${incident.status === "active" ? "border-cyan-500/30 text-cyan-300" : "border-emerald-500/30 text-emerald-300"}`} data-testid="status-incident">
             {incident.status === "draft_pr_opened" ? "Draft PR Opened" : incident.status}
           </span>
         </div>
@@ -62,7 +63,7 @@ export function DiagnosisCard({ incident, onToggleStatus, updating }: { incident
       <div className="grid lg:grid-cols-[1fr_280px] gap-0">
         <div className="p-5 space-y-2 lg:border-r border-zinc-800">
           <div className="text-[11px] uppercase tracking-[0.14em] text-zinc-500">Root cause</div>
-          <p className="text-[15px] leading-relaxed text-zinc-200" data-testid="text-root-cause">{d.root_cause_summary}</p>
+          <p className="text-[15px] leading-relaxed text-zinc-200" data-testid="text-root-cause"><Typewriter text={d.root_cause_summary} maxMs={1200} /></p>
         </div>
         <dl className="p-5 space-y-3.5 text-sm border-t lg:border-t-0 border-zinc-800">
           <div>
@@ -70,7 +71,7 @@ export function DiagnosisCard({ incident, onToggleStatus, updating }: { incident
             <dd data-testid="text-suspect-commit">
               {d.suspect_commit_sha ? (
                 <a href={`https://github.com/${incident.repository}/commit/${d.suspect_commit_sha}`} target="_blank" rel="noreferrer"
-                  className="inline-flex items-center gap-1 font-mono text-orange-300 hover:text-orange-200 underline-offset-4 hover:underline">
+                  className="inline-flex items-center gap-1 font-mono text-cyan-300 hover:text-cyan-200 underline-offset-4 hover:underline">
                   {d.suspect_commit_sha.slice(0, 10)}<ExternalLink className="size-3" />
                 </a>
               ) : <span className="text-zinc-500">Not identified</span>}
@@ -97,12 +98,12 @@ export function DiagnosisCard({ incident, onToggleStatus, updating }: { incident
       </div>
 
       <div className="px-5 pb-5 space-y-3">
-        <div className="flex items-start gap-2.5 rounded-lg border border-orange-500/25 bg-orange-500/[0.06] px-3.5 py-2.5 text-xs text-orange-200/90">
-          <ShieldAlert className="size-4 shrink-0 text-orange-400 mt-px" />
+        <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/25 bg-amber-500/[0.06] px-3.5 py-2.5 text-xs text-amber-200/90">
+          <ShieldAlert className="size-4 shrink-0 text-amber-400 mt-px" />
           <div className="space-y-1">
-            <p className="font-medium text-orange-200">AI-generated patch — not compiled, tested, or verified. Review before committing.</p>
+            <p className="font-medium text-amber-200">AI-generated patch — not compiled, tested, or verified. Review before committing.</p>
             {d.warnings.map((w, i) => (
-              <p key={i} className="flex gap-1.5 text-orange-200/75" data-testid={`text-warning-${i}`}><AlertTriangle className="size-3 mt-0.5 shrink-0" />{w}</p>
+              <p key={i} className="flex gap-1.5 text-amber-200/75" data-testid={`text-warning-${i}`}><AlertTriangle className="size-3 mt-0.5 shrink-0" />{w}</p>
             ))}
           </div>
         </div>
@@ -120,19 +121,19 @@ export function DiagnosisCard({ incident, onToggleStatus, updating }: { incident
                 <div className="p-3 bg-zinc-900 space-y-2 text-xs">
                   <p className="font-mono text-emerald-300 break-all">{d.regression_test.file_path}</p>
                   <p className="text-zinc-300 whitespace-pre-wrap">{d.regression_test.description}</p>
-                  <p className="text-orange-300">AI-generated · not run or verified. Review before execution.</p>
+                  <p className="text-cyan-300">AI-generated · not run or verified. Review before execution.</p>
                   <p className="text-zinc-500">Suggested command:</p>
                   <code className="block text-zinc-300 whitespace-pre-wrap break-all">{d.regression_test.run_command}</code>
                 </div>
-                <pre data-testid="code-regression-test" className="p-4 max-h-[500px] overflow-auto text-xs font-mono text-emerald-200 bg-zinc-950"><code>{d.regression_test.content}</code></pre>
+                <pre data-testid="code-regression-test" className="pw-scan-once relative p-4 max-h-[500px] overflow-auto text-xs font-mono text-emerald-200 bg-zinc-950"><code>{d.regression_test.content}</code></pre>
               </div>
             ) : <p className="p-4 text-sm text-zinc-400 border border-dashed border-zinc-800 rounded-lg">No regression test was saved with this diagnosis. Re-analyze the incident to generate a fix and its edge-case test.</p>}
           </TabsContent>
         </Tabs>
-        <div className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-4 space-y-3">
+        <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-4 space-y-3">
           <div className="flex items-start gap-2">
-            <ShieldAlert className="size-4 text-orange-400 shrink-0 mt-0.5" />
-            <div className="text-xs text-zinc-400"><p className="font-medium text-orange-200 mb-1">Human-in-the-Loop Guardrail</p>
+            <ShieldAlert className="size-4 text-cyan-400 shrink-0 mt-0.5" />
+            <div className="text-xs text-zinc-400"><p className="font-medium text-cyan-200 mb-1">Human-in-the-Loop Guardrail</p>
               A senior developer must review and test this patch. Patchwork only opens draft PRs; it never merges, force-pushes, or deploys them.
             </div>
           </div>
@@ -143,7 +144,7 @@ export function DiagnosisCard({ incident, onToggleStatus, updating }: { incident
             </a>
           ) : (
             <button onClick={openPr} disabled={pr.isPending || !d.original_code_snippet || d.original_code_snippet === d.patched_code_snippet}
-              data-testid="button-create-pr" className="w-full flex justify-center items-center gap-2 rounded-md bg-orange-500 hover:bg-orange-400 text-zinc-950 px-3 py-3 font-medium text-sm disabled:opacity-40">
+              data-testid="button-create-pr" className="w-full flex justify-center items-center gap-2 rounded-md bg-cyan-500 hover:bg-cyan-400 text-zinc-950 px-3 py-3 font-medium text-sm disabled:opacity-40">
               {pr.isPending ? <Loader2 className="size-4 animate-spin" /> : <GitPullRequest className="size-4" />}
               {pr.isPending ? "Creating guarded draft PR…" : "Open Draft PR on GitHub (Human Verification Guardrail)"}
             </button>
@@ -158,7 +159,7 @@ export function DiagnosisCard({ incident, onToggleStatus, updating }: { incident
               {incident.slack_status === "sent" ? "Slack alert sent" : incident.slack_status === "failed" ? "Slack delivery failed" : incident.slack_status === "not_configured" ? "Slack not configured" : "Slack alert not sent"}
             </span>
           </div>
-          {incident.slack_error && <p role="status" className="text-xs text-orange-200">{incident.slack_error}</p>}
+          {incident.slack_error && <p role="status" className="text-xs text-cyan-200">{incident.slack_error}</p>}
           {slack.isError && <p role="alert" className="text-xs text-rose-300">{errMsg(slack.error)}</p>}
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -169,7 +170,7 @@ export function DiagnosisCard({ incident, onToggleStatus, updating }: { incident
               {copied ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}{copied ? "Copied" : "Copy file"}
             </button>
             <button onClick={download} data-testid="button-download-file"
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-orange-500 text-zinc-950 font-medium hover:bg-orange-400 transition-colors">
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-cyan-500 text-zinc-950 font-medium hover:bg-cyan-400 transition-colors">
               <Download className="size-3.5" />Download
             </button>
           </div>

@@ -13,6 +13,9 @@ import { DiagnosisCard } from "@/components/diagnosis-card";
 import { SentrySettings } from "@/components/sentry-settings";
 import { DiagnosticTerminal, extractTracePath, type TerminalRun } from "@/components/diagnostic-terminal";
 import { errMsg, fmtSec } from "@/lib/diff";
+import { Typewriter } from "@/components/motion/typewriter";
+import { LaserScan } from "@/components/motion/laser-scan";
+import { TraceReveal } from "@/components/motion/trace-reveal";
 
 const REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const LS = "patchwork.config";
@@ -29,6 +32,8 @@ export default function Dashboard() {
   useEffect(() => { localStorage.setItem(LS, JSON.stringify({ repository: repo, branch })); }, [repo, branch]);
 
   const [trace, setTrace] = useState("");
+  const [reveal, setReveal] = useState<{ id: number; text: string } | null>(null);
+  const revealSeq = useRef(0);
   const [simulated, setSimulated] = useState(false);
   const [simPath, setSimPath] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -77,7 +82,7 @@ export default function Dashboard() {
 
   const runSimulate = () => {
     simulate.mutate({ data: { repository: repo.trim(), branch: branch.trim() } }, {
-      onSuccess: (s) => { setTrace(s.stack_trace); setSimulated(true); setSimPath(s.file_path); },
+      onSuccess: (s) => { setTrace(s.stack_trace); setReveal({ id: ++revealSeq.current, text: s.stack_trace }); setSimulated(true); setSimPath(s.file_path); },
     });
   };
 
@@ -113,10 +118,10 @@ export default function Dashboard() {
   return (
     <div className="relative z-10 min-h-[100dvh]">
       {/* Top bar */}
-      <header className="sticky top-0 z-20 border-b border-zinc-800/80 bg-[hsl(222_22%_6%/0.85)] backdrop-blur">
+      <header className="sticky top-0 z-20 border-b border-cyan-400/15 bg-[hsl(195_45%_4%/0.7)] backdrop-blur-md">
         <div className="max-w-[1400px] mx-auto px-4 md:px-6 h-14 flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <div className="size-6 rounded-md bg-orange-500 grid place-items-center text-zinc-950 font-mono text-[11px] font-bold">pw</div>
+            <div className="size-6 rounded-md pw-logo grid place-items-center text-zinc-950 font-mono text-[11px] font-bold">pw</div>
             <span className="font-semibold tracking-tight">Patchwork</span>
             <span className="hidden sm:inline text-xs text-zinc-500">incident → evidence → patch</span>
           </div>
@@ -144,10 +149,10 @@ export default function Dashboard() {
 
       <main className="max-w-[1400px] mx-auto px-4 md:px-6 py-6 space-y-6">
         {/* Summary */}
-        <div className="grid grid-cols-2 md:grid-cols-4 rounded-xl border border-zinc-800 bg-zinc-900/40 divide-x divide-zinc-800 overflow-hidden">
+        <div className="grid grid-cols-2 md:grid-cols-4 pw-glass rounded-xl divide-x divide-zinc-800 overflow-hidden">
           {[
             { k: "Total incidents", v: summary.data?.total, c: "text-zinc-100" },
-            { k: "Active", v: summary.data?.active, c: "text-orange-300" },
+            { k: "Active", v: summary.data?.active, c: "text-cyan-300" },
             { k: "Resolved", v: summary.data?.resolved, c: "text-emerald-300" },
             { k: "Avg time to diagnose", v: summary.data ? (summary.data.total ? fmtSec(summary.data.average_seconds) : "—") : undefined, c: "text-zinc-100" },
           ].map((s, i) => (
@@ -162,21 +167,21 @@ export default function Dashboard() {
 
         <div className="grid xl:grid-cols-[440px_1fr] gap-6 items-start">
           {/* Ingest */}
-          <section className={`rounded-xl border border-zinc-800 bg-zinc-900/50 xl:sticky xl:top-20 ${analyze.isPending ? "pw-active-card" : ""}`}>
+          <section className={`pw-glass rounded-xl xl:sticky xl:top-20 ${analyze.isPending ? "pw-active-card" : ""}`}>
             <div className="px-4 py-3 border-b border-zinc-800 flex items-center gap-2 text-sm">
-              <span className="font-mono text-[11px] text-orange-400">01</span><span className="font-medium">Ingest incident</span>
+              <span className="font-mono text-[11px] text-cyan-400">01</span><span className="font-medium">Ingest incident</span>
             </div>
             <div className="p-4 space-y-4">
               <div className="grid grid-cols-[1fr_120px] gap-2">
                 <label className="space-y-1">
                   <span className="flex items-center gap-1 text-[11px] text-zinc-500"><Github className="size-3" />Repository</span>
                   <input value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="owner/repo" data-testid="input-repository"
-                    className={`w-full h-9 px-2.5 rounded-md bg-zinc-950 border font-mono text-sm outline-none focus:border-orange-500/60 ${repo && !repoValid ? "border-rose-500/60" : "border-zinc-800"}`} />
+                    className={`w-full h-9 px-2.5 rounded-md bg-zinc-950 border font-mono text-sm outline-none focus:border-cyan-500/60 ${repo && !repoValid ? "border-rose-500/60" : "border-zinc-800"}`} />
                 </label>
                 <label className="space-y-1">
                   <span className="flex items-center gap-1 text-[11px] text-zinc-500"><GitBranch className="size-3" />Branch</span>
                   <input value={branch} onChange={(e) => setBranch(e.target.value)} placeholder="main" data-testid="input-branch"
-                    className="w-full h-9 px-2.5 rounded-md bg-zinc-950 border border-zinc-800 font-mono text-sm outline-none focus:border-orange-500/60" />
+                    className="w-full h-9 px-2.5 rounded-md bg-zinc-950 border border-zinc-800 font-mono text-sm outline-none focus:border-cyan-500/60" />
                 </label>
               </div>
               {repo && !repoValid && <p className="text-[11px] text-rose-300 -mt-2">Use owner/repo format, e.g. octocat/Hello-World</p>}
@@ -185,19 +190,26 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between h-9 px-2 bg-zinc-950/60 border-b border-zinc-800">
                   <span className="flex items-center gap-1.5 text-xs text-zinc-300 px-1.5 py-1 rounded bg-zinc-800/80"><Terminal className="size-3" />Crash log / stack trace</span>
                   <button onClick={runSimulate} disabled={!repoValid || !branchValid || simulate.isPending} data-testid="button-simulate"
-                    className="flex items-center gap-1.5 text-[11px] px-2 py-1 rounded text-orange-300 hover:bg-orange-500/10 disabled:opacity-40 disabled:hover:bg-transparent transition-colors">
+                    className="flex items-center gap-1.5 text-[11px] px-2 py-1 rounded text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-40 disabled:hover:bg-transparent transition-colors">
                     {simulate.isPending ? <Loader2 className="size-3 animate-spin" /> : <FlaskConical className="size-3" />}Simulate Sentry webhook
                   </button>
                 </div>
                 {simulated && (
-                  <div className="flex items-center justify-between gap-2 px-3 py-1.5 text-[11px] bg-orange-500/[0.07] border-b border-orange-500/20 text-orange-200">
+                  <div className="flex items-center justify-between gap-2 px-3 py-1.5 text-[11px] bg-cyan-500/[0.07] border-b border-cyan-500/20 text-cyan-200">
                     <span className="truncate">Simulated trace · synthetic error against real file <span className="font-mono">{simPath}</span></span>
-                    <button onClick={() => { setSimulated(false); setSimPath(null); setTrace(""); }} className="shrink-0 text-orange-300/70 hover:text-orange-200" data-testid="button-clear-simulation"><X className="size-3" /></button>
+                    <button onClick={() => { setSimulated(false); setSimPath(null); setTrace(""); setReveal(null); }} className="shrink-0 text-cyan-300/70 hover:text-cyan-200" data-testid="button-clear-simulation"><X className="size-3" /></button>
                   </div>
                 )}
-                <textarea value={trace} onChange={(e) => setTrace(e.target.value)} spellCheck={false} data-testid="input-stack-trace"
+                <div className="relative">
+                <textarea value={trace} onChange={(e) => { setReveal(null); setTrace(e.target.value); }} onFocus={() => setReveal(null)} onKeyDown={() => setReveal(null)} spellCheck={false} data-testid="input-stack-trace"
                   placeholder={"Traceback (most recent call last):\n  File \"app/handlers.py\", line 42, in handle\n    ...\nKeyError: 'user_id'"}
                   className="block w-full h-64 p-3 bg-zinc-950 font-mono text-[12px] leading-relaxed text-zinc-300 placeholder:text-zinc-700 outline-none resize-y scroll-thin" />
+                {reveal && (
+                  <div aria-hidden="true" className="pw-decrypt absolute inset-0 p-3 overflow-hidden pointer-events-none bg-zinc-950 font-mono text-[12px] leading-relaxed text-emerald-200 whitespace-pre-wrap break-words">
+                    <Typewriter key={reveal.id} text={reveal.text} maxMs={1000} onDone={() => setReveal((r) => (r && r.id === reveal.id ? null : r))} />
+                  </div>
+                )}
+                </div>
                 <div className="flex justify-between px-3 py-1 text-[10px] font-mono text-zinc-600 bg-zinc-950 border-t border-zinc-900">
                   <span>{trace.split("\n").filter(Boolean).length} lines</span><span>{trace.length.toLocaleString()} / 50,000</span>
                 </div>
@@ -205,11 +217,10 @@ export default function Dashboard() {
               {simulate.isError && <ErrorLine msg={`Simulation failed: ${errMsg(simulate.error)}. Check the repository exists and GITHUB_TOKEN has access.`} onRetry={runSimulate} />}
 
               <button onClick={runAnalyze} disabled={!repoValid || !branchValid || !traceValid || analyze.isPending} data-testid="button-analyze"
-                className="pw-cta relative w-full h-11 rounded-lg bg-orange-500 text-zinc-950 font-medium text-sm flex items-center justify-center gap-2 overflow-hidden hover:bg-orange-400 active:scale-[0.99] disabled:bg-zinc-800 disabled:text-zinc-500 transition-[background-color,transform]">
+                className="pw-cta relative w-full h-11 rounded-lg font-semibold text-sm flex items-center justify-center gap-2">
                 {analyze.isPending ? (
                   <>
-                    <span className="absolute inset-y-0 left-0 w-1/3 bg-white/20 scan" />
-                    <Loader2 className="size-4 animate-spin" />Diagnosing
+                    <span aria-hidden="true" className="size-4 relative overflow-hidden rounded-sm border border-cyan-400/60"><span className="pw-button-laser" /></span>Diagnosing
                     <span className="font-mono tabular-nums" data-testid="text-live-timer">{elapsed.toFixed(1)}s</span>
                   </>
                 ) : (<><Sparkles className="size-4" />Analyze &amp; diagnose incident</>)}
@@ -224,7 +235,7 @@ export default function Dashboard() {
                 </p>
               )}
               <div className="border-t border-zinc-800 pt-3 space-y-2">
-                <p className="text-xs text-zinc-300">Live Sentry webhook · <span className={live ? "text-emerald-300" : "text-orange-300"}>{live ? "live updates" : "polling fallback"}</span></p>
+                <p className="text-xs text-zinc-300">Live Sentry webhook · <span className={live ? "text-emerald-300" : "text-cyan-300"}>{live ? "live updates" : "polling fallback"}</span></p>
                 <code className="block text-[11px] text-zinc-500 break-all">POST /api/webhooks/sentry</code>
                 <p className="text-[11px] text-zinc-500">{cfg?.sentry_webhook_configured ? "External deliveries require a valid Sentry signature." : "External receiver disabled: SENTRY_WEBHOOK_SECRET is not configured."}</p>
                 <SentrySettings configured={cfg?.sentry_webhook_configured ?? false} checking={config.isFetching} failed={config.isError} onCheck={() => { void config.refetch(); }} />
@@ -232,7 +243,7 @@ export default function Dashboard() {
                   onClick={() => webhook.mutate({ data: { repository: repo.trim(), branch: branch.trim(), stack_trace: trace, simulated: true } }, {
                     onSuccess: () => qc.invalidateQueries({ queryKey: getListWebhookJobsQueryKey() }),
                   })}
-                  className="flex items-center gap-2 text-xs px-3 py-2 rounded-md border border-orange-500/30 text-orange-300 hover:bg-orange-500/10 disabled:opacity-40">
+                  className="flex items-center gap-2 text-xs px-3 py-2 rounded-md border border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-40">
                   {webhook.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <FlaskConical className="size-3.5" />}
                   Send simulated webhook & diagnose
                 </button>
@@ -246,17 +257,10 @@ export default function Dashboard() {
           {/* Diagnosis */}
           <div className="space-y-6 min-w-0">
             <div className="flex items-center gap-2 text-sm">
-              <span className="font-mono text-[11px] text-orange-400">02</span><span className="font-medium">Diagnosis</span>
+              <span className="font-mono text-[11px] text-cyan-400">02</span><span className="font-medium">Diagnosis</span>
             </div>
             {analyze.isPending ? (
-              <div className="pw-active-card rounded-xl border border-zinc-800 bg-zinc-900/40 p-5 space-y-3">
-                {["Parsing stack frames", "Fetching file and last 5 commits from GitHub", "Asking Gemini for root cause and patch"].map((s, i) => (
-                  <div key={s} className="flex items-center gap-3 text-sm text-zinc-400">
-                    <span className={`size-1.5 rounded-full ${elapsed > i * 3 ? "bg-orange-400 animate-pulse" : "bg-zinc-700"}`} />{s}
-                  </div>
-                ))}
-                <div className="h-40 rounded-lg bg-zinc-800/40 animate-pulse" />
-              </div>
+              <LaserScan trace={trace} elapsed={elapsed} />
             ) : selected ? (
               <div key={selected.id}
                 className={flash && flash.incidentId === selected.id ? "pw-success-flash" : undefined}>
@@ -271,20 +275,17 @@ export default function Dashboard() {
             )}
             {update.isError && <ErrorLine msg={`Status update failed: ${errMsg(update.error)}`} />}
             {(
-              <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 space-y-2" data-testid="webhook-jobs">
-                <h3 className="text-sm font-medium flex items-center gap-2"><Activity className="size-4 text-orange-400" />Active Incidents queue</h3>
+              <section className="pw-glass rounded-xl p-4 space-y-2" data-testid="webhook-jobs">
+                <h3 className="text-sm font-medium flex items-center gap-2"><Activity className="size-4 text-cyan-400" />Active Incidents queue</h3>
                 <p className="text-xs text-zinc-500">Incoming signed Sentry events appear here immediately, then run through Gemini in the background.</p>
                 {jobs.isLoading && <p className="text-xs text-zinc-500">Loading queue…</p>}
                 {!jobs.isLoading && !jobs.isError && !jobs.data?.length && <p className="text-xs text-zinc-500">Waiting for a Sentry delivery. Simulated deliveries are labeled separately.</p>}
                 {jobs.isError && <ErrorLine msg={errMsg(jobs.error)} onRetry={() => { void jobs.refetch(); }} />}
-                {jobs.data?.map(job => (
-                  <div key={job.id} className="text-xs border-t border-zinc-800 pt-2 flex flex-wrap justify-between gap-2">
-                    <span className="text-zinc-400">#{job.id} · {job.repository}@{job.branch} · {job.simulated ? "simulated" : "signed Sentry"} · <span className={job.status === "failed" ? "text-rose-300" : job.status === "completed" ? "text-emerald-300" : "text-orange-300"}>{job.status}</span></span>
+                {jobs.data?.map((job, idx) => (
+                  <div key={job.id} style={{ animationDelay: `${Math.min(idx, 10) * 45}ms` }} className="pw-row-in text-xs border-t border-zinc-800 pt-2 flex flex-wrap justify-between gap-2">
+                    <span className="text-zinc-400">#{job.id} · {job.repository}@{job.branch} · {job.simulated ? "simulated" : "signed Sentry"} · <span className={job.status === "failed" ? "text-rose-300" : job.status === "completed" ? "text-emerald-300" : "text-cyan-300"}>{job.status}</span></span>
                     {job.incident_id && <button className="text-emerald-300 underline" onClick={() => setSelectedId(job.incident_id)}>View diagnosis</button>}
-                    <details className="w-full text-zinc-400">
-                      <summary className="cursor-pointer hover:text-zinc-200">Incoming stack trace</summary>
-                      <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-md bg-zinc-950 p-3 text-[11px] font-mono">{job.stack_trace}</pre>
-                    </details>
+                    <TraceReveal label="Incoming stack trace" text={job.stack_trace} />
                     {job.error && <p role="alert" className="w-full text-rose-300">{job.error}</p>}
                   </div>
                 ))}
@@ -325,16 +326,16 @@ function History(p: {
   }, [p.list, q, filter]);
 
   return (
-    <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 overflow-hidden">
+    <section className="pw-glass rounded-xl overflow-hidden">
       <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-zinc-800">
-        <span className="font-mono text-[11px] text-orange-400">03</span>
+        <span className="font-mono text-[11px] text-cyan-400">03</span>
         <span className="text-sm font-medium">Resolved &amp; active incidents</span>
         {p.fetching && !p.loading && <RefreshCw className="size-3 text-zinc-600 animate-spin" />}
         <div className="ml-auto flex items-center gap-2">
           <div className="relative">
             <Search className="size-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-zinc-600" />
             <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" data-testid="input-search"
-              className="h-8 w-44 pl-7 pr-2 rounded-md bg-zinc-950 border border-zinc-800 text-xs outline-none focus:border-orange-500/60" />
+              className="h-8 w-44 pl-7 pr-2 rounded-md bg-zinc-950 border border-zinc-800 text-xs outline-none focus:border-cyan-500/60" />
           </div>
           <div className="flex rounded-md border border-zinc-800 p-0.5 bg-zinc-950 text-[11px]">
             {(["all", "active", "resolved"] as const).map((f) => (
@@ -368,11 +369,11 @@ function History(p: {
               </tr>
             </thead>
             <tbody>
-              {rows.map((i) => (
-                <tr key={i.id} onClick={() => p.onSelect(i.id)} data-testid={`row-incident-${i.id}`}
-                  className={`border-b border-zinc-800/60 cursor-pointer transition-colors ${p.selectedId === i.id ? "bg-orange-500/[0.06]" : "hover:bg-zinc-800/30"}`}>
-                  <td className={`px-4 py-2.5 font-mono text-zinc-500 border-l-2 ${p.selectedId === i.id ? "border-orange-500" : "border-transparent"}`}>{i.id}</td>
-                  <td className="px-2 py-2.5"><span className="font-mono text-rose-300">{i.error_type}</span>{i.simulated && <span className="ml-1.5 text-[10px] text-orange-300/80">sim</span>}</td>
+              {rows.map((i, idx) => (
+                <tr key={`${i.id}:${i.status}`} style={{ animationDelay: `${Math.min(idx, 10) * 40}ms` }} onClick={() => p.onSelect(i.id)} data-testid={`row-incident-${i.id}`}
+                  className={`pw-row-in border-b border-zinc-800/60 cursor-pointer transition-colors ${p.selectedId === i.id ? "bg-cyan-500/[0.06]" : "hover:bg-zinc-800/30"}`}>
+                  <td className={`px-4 py-2.5 font-mono text-zinc-500 border-l-2 ${p.selectedId === i.id ? "border-cyan-500" : "border-transparent"}`}>{i.id}</td>
+                  <td className="px-2 py-2.5"><span className="font-mono text-rose-300">{i.error_type}</span>{i.simulated && <span className="ml-1.5 text-[10px] text-cyan-300/80">sim</span>}</td>
                   <td className="px-2 py-2.5 max-w-[260px]"><div className="truncate text-zinc-300">{i.repository}<span className="text-zinc-600">@{i.branch}</span></div><div className="truncate font-mono text-zinc-500">{i.diagnosis.file_path}</div></td>
                   <td className="px-2 py-2.5 font-mono text-zinc-400">{i.diagnosis.suspect_commit_sha?.slice(0, 7) ?? "—"}</td>
                   <td className="px-2 py-2.5 font-mono text-right tabular-nums text-zinc-300">{Math.round(i.diagnosis.confidence_score)}%</td>
@@ -381,7 +382,7 @@ function History(p: {
                   <td className="px-4 py-2.5 text-right">
                     <button onClick={(e) => { e.stopPropagation(); p.onToggle(i); }} disabled={p.updatingId === i.id} data-testid={`button-status-${i.id}`}
                       title={i.status !== "resolved" ? "Mark resolved (manual)" : "Reopen"}
-                      className={`inline-flex items-center gap-1 px-2 py-1 rounded border transition-colors disabled:opacity-50 ${i.status === "active" ? "border-orange-500/30 text-orange-300 hover:bg-orange-500/10" : "border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10"}`}>
+                      className={`inline-flex items-center gap-1 px-2 py-1 rounded border transition-colors disabled:opacity-50 ${i.status === "active" ? "border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10" : "border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10"}`}>
                       {p.updatingId === i.id ? <Loader2 className="size-3 animate-spin" /> : i.status === "active" ? <Play className="size-3" /> : <CheckCircle2 className="size-3" />}
                       {i.status === "draft_pr_opened" ? "Draft PR Opened" : i.status}
                       {i.status === "resolved" && <RotateCcw className="size-3 opacity-50" />}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, TerminalSquare } from "lucide-react";
 import { fmtSec } from "@/lib/diff";
+import { Typewriter } from "@/components/motion/typewriter";
 import "./diagnostic-terminal.css";
 
 export type TerminalRun = {
@@ -22,8 +23,6 @@ export function extractTracePath(trace: string): string | null {
   return m ? m[1] : null;
 }
 
-const reduced = () => typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-
 function steps(r: TerminalRun): [string, string][] {
   return [
     ["SYS", `ingest trace · ${r.traceLines} lines · ${r.repo}@${r.branch}`],
@@ -34,33 +33,36 @@ function steps(r: TerminalRun): [string, string][] {
   ];
 }
 
-export function DiagnosticTerminal({ run, open, onToggle }: { run: TerminalRun; open: boolean; onToggle: () => void }) {
-  const lines = useMemo(() => steps(run), [run.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [shown, setShown] = useState(0); // fully shown lines
-  const [chars, setChars] = useState(0); // chars of current line
+function TerminalLog({ run }: { run: TerminalRun }) {
+  const steps_ = useMemo(() => steps(run), [run.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [idx, setIdx] = useState(0); // index of line currently typing
   const logRef = useRef<HTMLDivElement>(null);
   const done = run.status !== "pending";
+  const final: [string, string, string] | null = run.status === "success"
+    ? ["OK ", `root cause identified in ${fmtSec(run.elapsed ?? NaN)} · ${run.filePath ?? ""}`, "ok"]
+    : run.status === "error" ? ["ERR", run.error ?? "analysis failed", "err"] : null;
+  const all: [string, string, string][] = [...steps_.map(([t, m]) => [t, m, "step"] as [string, string, string]), ...(final ? [final] : [])];
+  const visible = all.slice(0, idx + 1);
 
-  // Reset per run
-  useEffect(() => { setShown(reduced() ? lines.length : 0); setChars(0); }, [run.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { const el = logRef.current; if (el) el.scrollTop = el.scrollHeight; });
 
-  // Typewriter while pending; stops on completion/unmount
-  useEffect(() => {
-    if (done || shown >= lines.length) return;
-    const text = `[${lines[shown][0]}] ${lines[shown][1]}`;
-    if (chars >= text.length) {
-      const t = window.setTimeout(() => { setShown((s) => s + 1); setChars(0); }, 380);
-      return () => window.clearTimeout(t);
-    }
-    const t = window.setTimeout(() => setChars((c) => c + 2), 16);
-    return () => window.clearTimeout(t);
-  }, [done, shown, chars, lines]);
+  return (
+    <div ref={logRef} className="pwt-log scroll-thin" role="log" aria-live="polite" aria-label="Simulated diagnostic stream">
+      <div className="pwt-line pwt-dim"># illustrative steps, not backend telemetry</div>
+      {visible.map(([tag, msg, kind], i) => (
+        <div key={i} className="pwt-line" data-testid={kind === "ok" ? "text-terminal-ok" : kind === "err" ? "text-terminal-err" : undefined}>
+          <span className={kind === "ok" ? "pwt-tag-ok" : kind === "err" ? "pwt-tag-err" : "pwt-tag"}>[{tag}]</span>{" "}
+          <Typewriter text={msg} cps={done ? 1600 : 520} maxMs={done ? 500 : 1100} cursor={i === idx}
+            onDone={() => window.setTimeout(() => setIdx((v) => Math.max(v, i + 1)), done ? 40 : 220)} />
+        </div>
+      ))}
+      {!done && idx >= all.length && <div className="pwt-line pwt-dim">... awaiting backend response<span className="pw-cursor" /></div>}
+      {run.status === "error" && <span className="sr-only" role="alert">Analysis failed: {run.error}</span>}
+    </div>
+  );
+}
 
-  useEffect(() => { const el = logRef.current; if (el) el.scrollTop = el.scrollHeight; }, [shown, chars, run.status]);
-
-  const visible = done ? lines.length : shown;
-  const partial = !done && shown < lines.length ? `[${lines[shown][0]}] ${lines[shown][1]}`.slice(0, chars) : null;
-
+export function DiagnosticTerminal({ run, open, onToggle }: { run: TerminalRun; open: boolean; onToggle: () => void }) {
   return (
     <div className="pwt" data-testid="terminal-diagnostic">
       <button type="button" className="pwt-head" onClick={onToggle} aria-expanded={open} aria-controls={`pwt-body-${run.id}`} data-testid="button-toggle-terminal">
@@ -72,22 +74,7 @@ export function DiagnosticTerminal({ run, open, onToggle }: { run: TerminalRun; 
         <ChevronDown className={`size-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       <div className="pwt-body" id={`pwt-body-${run.id}`} data-open={open} inert={!open}>
-        <div>
-          <div ref={logRef} className="pwt-log scroll-thin" role="log" aria-live="polite" aria-label="Simulated diagnostic stream">
-            <div className="pwt-line pwt-dim"># illustrative steps, not backend telemetry</div>
-            {lines.slice(0, visible).map(([tag, msg], i) => (
-              <div key={i} className="pwt-line"><span className="pwt-tag">[{tag}]</span> {msg}</div>
-            ))}
-            {partial !== null && <div className="pwt-line" aria-hidden="true">{partial}<span className="pwt-cursor" /></div>}
-            {!done && partial === null && <div className="pwt-line pwt-dim">... awaiting backend response<span className="pwt-cursor" /></div>}
-            {run.status === "success" && (
-              <div className="pwt-line" data-testid="text-terminal-ok"><span className="pwt-tag-ok">[OK ]</span> root cause identified in {fmtSec(run.elapsed ?? NaN)} · {run.filePath}</div>
-            )}
-            {run.status === "error" && (
-              <div className="pwt-line" role="alert" data-testid="text-terminal-err"><span className="pwt-tag-err">[ERR]</span> {run.error}</div>
-            )}
-          </div>
-        </div>
+        <div><TerminalLog key={run.id} run={run} /></div>
       </div>
     </div>
   );

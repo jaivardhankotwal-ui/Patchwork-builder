@@ -43,22 +43,20 @@
 .pw-active-card { position: relative; }
 .pw-active-card::after {
   content: ''; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none;
-  box-shadow: 0 0 0 1px hsl(142 72% 58% / .35), 0 0 28px -6px hsl(142 72% 58% / .3);
+  box-shadow: 0 0 0 1px hsl(170 100% 55% / .35), 0 0 28px -6px hsl(170 100% 55% / .3);
   animation: pw-ring 2.2s ease-in-out infinite;
 }
 @keyframes pw-ring { 0%,100% { opacity: .45; } 50% { opacity: 1; } }
-.pw-cta:not(:disabled) { box-shadow: 0 8px 24px -12px hsl(24 95% 55% / .7); }
-.pw-cta:not(:disabled):hover { box-shadow: 0 10px 30px -10px hsl(24 95% 55% / .9); }
 .pw-success-flash { border-radius: 14px; animation: pw-success 1.8s cubic-bezier(.2,.7,.2,1) both; }
 @keyframes pw-success {
-  0% { box-shadow: 0 0 0 0 hsl(142 72% 58% / .55); }
-  35% { box-shadow: 0 0 0 4px hsl(142 72% 58% / .25), 0 0 40px -4px hsl(142 72% 58% / .35); }
-  100% { box-shadow: 0 0 0 0 hsl(142 72% 58% / 0); }
+  0% { box-shadow: 0 0 0 0 hsl(170 100% 55% / .55); }
+  35% { box-shadow: 0 0 0 4px hsl(170 100% 55% / .25), 0 0 40px -4px hsl(170 100% 55% / .35); }
+  100% { box-shadow: 0 0 0 0 hsl(170 100% 55% / 0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .pwt-body { transition: none; }
   .pwt-cursor, .pwt-live, .pw-active-card::after, .pw-success-flash, .scan { animation: none; }
-  .pw-success-flash { box-shadow: 0 0 0 2px hsl(142 72% 58% / .4); }
+  .pw-success-flash { box-shadow: 0 0 0 2px hsl(170 100% 55% / .4); }
   .pwt-log { scroll-behavior: auto; }
 }

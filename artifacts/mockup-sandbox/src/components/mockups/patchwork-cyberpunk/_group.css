@@ -1,0 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+.pw-baseline {
+  --app-font-sans: 'Geist', ui-sans-serif, sans-serif;
+  --app-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  background: hsl(222 22% 6%);
+  color: hsl(220 14% 90%);
+  font-family: var(--app-font-sans);
+}
+.pw-baseline .pw-cta:not(:disabled) { box-shadow: 0 8px 24px -12px hsl(24 95% 55% / .7); }
+.pw-baseline .pw-cta:not(:disabled):hover { box-shadow: 0 10px 30px -10px hsl(24 95% 55% / .9); }

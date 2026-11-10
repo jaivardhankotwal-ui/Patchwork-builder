@@ -15,7 +15,7 @@ export function DiffViewer({ original, patched, filePath }: { original: string; 
   const dels = lines.filter((l) => l.kind === "del").length;
 
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-950/70 overflow-hidden" data-testid="diff-viewer">
+    <div className="pw-scan-once relative rounded-lg border border-cyan-400/15 bg-[hsl(190_45%_3%/0.8)] overflow-hidden" data-testid="diff-viewer">
       <div className="flex items-center justify-between gap-3 px-3 h-10 border-b border-zinc-800 bg-zinc-900/60">
         <div className="flex items-center gap-3 min-w-0 font-mono text-xs">
           <span className="truncate text-zinc-300" data-testid="text-diff-path">{filePath}</span>
