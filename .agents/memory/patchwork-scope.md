@@ -19,3 +19,9 @@ Slack notifications are requested after diagnosis and draft PR creation, with a 
 **Why:** The user expanded the workflow to include human-in-the-loop draft PRs, Slack incident alerts and live webhook ingestion.
 
 **How to apply:** Draft PR links must not be called ready to merge before human review; if no PR exists yet, say so. Missing webhook credentials must be visible, not silently simulated.
+
+Keep signing-secret entry in the workspace's secure Secrets tooling while the dashboard lacks administrator authentication; settings may expose configuration status, not the secret.
+
+**Why:** An unauthenticated secret-editing endpoint would let any visitor replace the trusted webhook signing identity. This is a security boundary, not a rejection of future authenticated settings.
+
+**How to apply:** Do not add a public credential setter to satisfy settings requests. Use secure secret provisioning and restart the API to load it; revisit in-app editing only with authenticated, authorized administration and secure server-side storage.

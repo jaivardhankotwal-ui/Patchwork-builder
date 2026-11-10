@@ -10,6 +10,9 @@ import type { WebhookJobStatus } from './webhookJobStatus';
 export interface WebhookJob {
   id: number;
   repository: string;
+  branch: string;
+  stack_trace: string;
+  simulated: boolean;
   status: WebhookJobStatus;
   /** @nullable */
   incident_id: number | null;

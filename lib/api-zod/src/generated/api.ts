@@ -87,6 +87,9 @@ export const ReceiveSentryWebhookBody = zod.object({
 export const ReceiveSentryWebhookResponse = zod.object({
   "id": zod.number().int(),
   "repository": zod.string(),
+  "branch": zod.string(),
+  "stack_trace": zod.string(),
+  "simulated": zod.boolean(),
   "status": zod.enum(['queued', 'processing', 'completed', 'failed']),
   "incident_id": zod.number().int().nullable(),
   "error": zod.string().nullable(),
@@ -116,6 +119,9 @@ export const SimulateSentryWebhookBody = zod.object({
 export const SimulateSentryWebhookResponse = zod.object({
   "id": zod.number().int(),
   "repository": zod.string(),
+  "branch": zod.string(),
+  "stack_trace": zod.string(),
+  "simulated": zod.boolean(),
   "status": zod.enum(['queued', 'processing', 'completed', 'failed']),
   "incident_id": zod.number().int().nullable(),
   "error": zod.string().nullable(),
@@ -126,6 +132,9 @@ export const SimulateSentryWebhookResponse = zod.object({
 export const ListWebhookJobsResponseItem = zod.object({
   "id": zod.number().int(),
   "repository": zod.string(),
+  "branch": zod.string(),
+  "stack_trace": zod.string(),
+  "simulated": zod.boolean(),
   "status": zod.enum(['queued', 'processing', 'completed', 'failed']),
   "incident_id": zod.number().int().nullable(),
   "error": zod.string().nullable(),

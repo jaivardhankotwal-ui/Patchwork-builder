@@ -24,7 +24,9 @@ Alerts include timing, error/file, suspected author and commit, root cause and t
 
 Endpoint: `POST /api/webhooks/sentry` on the application's domain.
 
-Add **SENTRY_WEBHOOK_SECRET** in Secrets, using the signing secret from the Sentry integration. The receiver requires the **sentry-hook-signature** header: a hexadecimal HMAC SHA256 digest of the exact raw JSON body, computed using that secret. Re-serializing the body after signing invalidates its signature.
+Open **Sentry settings** in the dashboard to copy the endpoint and check configuration status. Add **SENTRY_WEBHOOK_SECRET** in Replit's secure Secrets input, using the signing secret from the Sentry integration, then restart the API workflow. The unauthenticated dashboard deliberately does not expose a secret-editing endpoint; otherwise any visitor could replace the receiver's signing secret.
+
+The receiver requires the **sentry-hook-signature** header: a hexadecimal HMAC SHA256 digest of the exact raw JSON body, computed using that secret. Re-serializing the body after signing invalidates its signature.
 
 Without the secret, the external receiver returns **503**. Missing or invalid signatures return **401**. Invalid payloads return **400**.
 
@@ -48,7 +50,7 @@ Repository selection is explicit:
 
 The default branch is `main`. There is no default repository. An issue-only payload without an exception event or stack trace is rejected rather than inventing crash evidence.
 
-Valid deliveries return **202** with a persisted job. Identical signed bodies return the same job, preventing duplicate incidents on delivery retries. Jobs survive restarts. The dashboard's **Webhook activity** reports queued, processing, completed or failed, with a diagnosis link or actionable error.
+Valid deliveries return **202** with a persisted job. Identical signed bodies return the same job, preventing duplicate incidents on delivery retries. Jobs survive restarts. The dashboard's **Active Incidents queue** shows the received stack trace and reports queued, processing, completed or failed, with a diagnosis link or actionable error.
 
 Dashboard changes are pushed over `GET /api/events` (Server-Sent Events); periodic list refreshes provide a fallback and support multiple server instances.
 

@@ -11,13 +11,17 @@ import { logger } from "../lib/logger";
 import type { IncidentInput } from "../lib/incident-types";
 
 const router: IRouter = Router();
+function publicJob(job: typeof webhookJobsTable.$inferSelect) {
+  const input = job.payload as IncidentInput;
+  return { ...job, branch: input.branch, stack_trace: input.stack_trace, simulated: input.simulated === true };
+}
 async function enqueue(input: IncidentInput, delivery: string) {
   const [inserted] = await db.insert(webhookJobsTable).values({
     repository: input.repository, payload: input, delivery_id: delivery, created_at: new Date().toISOString(),
   }).onConflictDoNothing().returning();
   const job = inserted || (await db.select().from(webhookJobsTable).where(eq(webhookJobsTable.delivery_id, delivery)))[0];
   notifyDashboard();
-  return ReceiveSentryWebhookResponse.parse(job);
+  return ReceiveSentryWebhookResponse.parse(publicJob(job));
 }
 router.post("/webhooks/sentry", async (req, res) => {
   const secret = process.env.SENTRY_WEBHOOK_SECRET;
@@ -40,7 +44,8 @@ router.post("/webhooks/sentry/simulate", async (req, res) => {
   res.status(202).json(await enqueue({ ...parsed.data, simulated: true }, `simulation:${randomUUID()}`));
 });
 router.get("/webhooks/jobs", async (_req, res) => {
-  res.json(ListWebhookJobsResponse.parse(await db.select().from(webhookJobsTable).orderBy(desc(webhookJobsTable.id)).limit(10)));
+  const jobs = await db.select().from(webhookJobsTable).orderBy(desc(webhookJobsTable.id)).limit(10);
+  res.json(ListWebhookJobsResponse.parse(jobs.map(publicJob)));
 });
 router.get("/events", (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");

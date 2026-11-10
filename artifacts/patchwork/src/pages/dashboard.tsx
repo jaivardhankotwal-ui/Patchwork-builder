@@ -10,6 +10,7 @@ import {
   useSimulateSentryWebhook, useListWebhookJobs, getListWebhookJobsQueryKey,
 } from "@workspace/api-client-react";
 import { DiagnosisCard } from "@/components/diagnosis-card";
+import { SentrySettings } from "@/components/sentry-settings";
 import { DiagnosticTerminal, extractTracePath, type TerminalRun } from "@/components/diagnostic-terminal";
 import { errMsg, fmtSec } from "@/lib/diff";
 
@@ -226,6 +227,7 @@ export default function Dashboard() {
                 <p className="text-xs text-zinc-300">Live Sentry webhook · <span className={live ? "text-emerald-300" : "text-orange-300"}>{live ? "live updates" : "polling fallback"}</span></p>
                 <code className="block text-[11px] text-zinc-500 break-all">POST /api/webhooks/sentry</code>
                 <p className="text-[11px] text-zinc-500">{cfg?.sentry_webhook_configured ? "External deliveries require a valid Sentry signature." : "External receiver disabled: SENTRY_WEBHOOK_SECRET is not configured."}</p>
+                <SentrySettings configured={cfg?.sentry_webhook_configured ?? false} checking={config.isFetching} failed={config.isError} onCheck={() => { void config.refetch(); }} />
                 <button data-testid="button-submit-webhook" disabled={!repoValid || !branchValid || !traceValid || webhook.isPending}
                   onClick={() => webhook.mutate({ data: { repository: repo.trim(), branch: branch.trim(), stack_trace: trace, simulated: true } }, {
                     onSuccess: () => qc.invalidateQueries({ queryKey: getListWebhookJobsQueryKey() }),
@@ -268,14 +270,21 @@ export default function Dashboard() {
               </div>
             )}
             {update.isError && <ErrorLine msg={`Status update failed: ${errMsg(update.error)}`} />}
-            {(jobs.isError || !!jobs.data?.length) && (
+            {(
               <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 space-y-2" data-testid="webhook-jobs">
-                <h3 className="text-sm font-medium">Webhook activity</h3>
+                <h3 className="text-sm font-medium flex items-center gap-2"><Activity className="size-4 text-orange-400" />Active Incidents queue</h3>
+                <p className="text-xs text-zinc-500">Incoming signed Sentry events appear here immediately, then run through Gemini in the background.</p>
+                {jobs.isLoading && <p className="text-xs text-zinc-500">Loading queue…</p>}
+                {!jobs.isLoading && !jobs.isError && !jobs.data?.length && <p className="text-xs text-zinc-500">Waiting for a Sentry delivery. Simulated deliveries are labeled separately.</p>}
                 {jobs.isError && <ErrorLine msg={errMsg(jobs.error)} onRetry={() => { void jobs.refetch(); }} />}
                 {jobs.data?.map(job => (
                   <div key={job.id} className="text-xs border-t border-zinc-800 pt-2 flex flex-wrap justify-between gap-2">
-                    <span className="text-zinc-400">#{job.id} · {job.repository} · <span className={job.status === "failed" ? "text-rose-300" : "text-orange-300"}>{job.status}</span></span>
+                    <span className="text-zinc-400">#{job.id} · {job.repository}@{job.branch} · {job.simulated ? "simulated" : "signed Sentry"} · <span className={job.status === "failed" ? "text-rose-300" : job.status === "completed" ? "text-emerald-300" : "text-orange-300"}>{job.status}</span></span>
                     {job.incident_id && <button className="text-emerald-300 underline" onClick={() => setSelectedId(job.incident_id)}>View diagnosis</button>}
+                    <details className="w-full text-zinc-400">
+                      <summary className="cursor-pointer hover:text-zinc-200">Incoming stack trace</summary>
+                      <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-md bg-zinc-950 p-3 text-[11px] font-mono">{job.stack_trace}</pre>
+                    </details>
                     {job.error && <p role="alert" className="w-full text-rose-300">{job.error}</p>}
                   </div>
                 ))}

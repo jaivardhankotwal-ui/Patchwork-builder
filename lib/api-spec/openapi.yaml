@@ -193,10 +193,13 @@ components:
         data: { type: object, additionalProperties: true }
     WebhookJob:
       type: object
-      required: [id, repository, status, incident_id, error, created_at]
+      required: [id, repository, status, incident_id, error, created_at, stack_trace, branch, simulated]
       properties:
         id: { type: integer }
         repository: { type: string }
+        branch: { type: string }
+        stack_trace: { type: string }
+        simulated: { type: boolean }
         status: { type: string, enum: [queued, processing, completed, failed] }
         incident_id: { type: [integer, "null"] }
         error: { type: [string, "null"] }
