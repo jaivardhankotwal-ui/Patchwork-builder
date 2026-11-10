@@ -16,6 +16,8 @@ import { errMsg, fmtSec } from "@/lib/diff";
 import { Typewriter } from "@/components/motion/typewriter";
 import { LaserScan } from "@/components/motion/laser-scan";
 import { TraceReveal } from "@/components/motion/trace-reveal";
+import { DragonMark } from "@/components/dragon-mark";
+import { useIntro } from "@/components/startup-intro";
 
 const REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const LS = "patchwork.config";
@@ -26,6 +28,7 @@ function Dot({ ok }: { ok: boolean }) {
 
 export default function Dashboard() {
   const qc = useQueryClient();
+  const { replay: replayIntro } = useIntro();
   const saved = useMemo(() => { try { return JSON.parse(localStorage.getItem(LS) || "{}"); } catch { return {}; } }, []);
   const [repo, setRepo] = useState<string>(saved.repository ?? "");
   const [branch, setBranch] = useState<string>(saved.branch ?? "main");
@@ -119,14 +122,18 @@ export default function Dashboard() {
     <div className="relative z-10 min-h-[100dvh]">
       {/* Top bar */}
       <header className="sticky top-0 z-20 border-b border-cyan-400/15 bg-[hsl(195_45%_4%/0.7)] backdrop-blur-md">
-        <div className="max-w-[1400px] mx-auto px-4 md:px-6 h-14 flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className="size-6 rounded-md pw-logo grid place-items-center text-zinc-950 font-mono text-[11px] font-bold">pw</div>
+        <div className="max-w-[1400px] mx-auto px-4 md:px-6 h-14 flex items-center gap-2 sm:gap-4">
+          <div className="dm-hover flex items-center gap-2 shrink-0" data-testid="brand-patchwork">
+            <DragonMark size={30} />
             <span className="font-semibold tracking-tight">Patchwork</span>
-            <span className="hidden sm:inline text-xs text-zinc-500">incident → evidence → patch</span>
+            <span className="hidden lg:inline text-xs text-zinc-500">incident → evidence → patch</span>
           </div>
-          <div className="ml-auto flex items-center gap-4 text-[11px] font-mono" data-testid="status-config">
-            {config.isLoading ? <span className="h-3 w-56 rounded bg-zinc-800 animate-pulse" /> : config.isError ? (
+          <button type="button" onClick={(e) => replayIntro(e.currentTarget)} data-testid="button-replay-intro"
+            className="shrink-0 whitespace-nowrap text-[11px] font-mono px-2 py-1 rounded-md border border-cyan-400/30 text-cyan-300 hover:bg-cyan-400/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300">
+            🐉 Replay Intro
+          </button>
+          <div className="ml-auto min-w-0 flex items-center gap-4 text-[11px] font-mono" data-testid="status-config">
+            {config.isLoading ? <span className="hidden sm:block h-3 w-20 lg:w-56 rounded bg-zinc-800 animate-pulse" /> : config.isError ? (
               <button onClick={() => config.refetch()} className="flex items-center gap-1 text-rose-300"><AlertCircle className="size-3" />config unavailable · retry</button>
             ) : cfg && (
               <>
@@ -136,7 +143,7 @@ export default function Dashboard() {
                     <span key={k} className="flex items-center gap-1.5" data-testid={`status-env-${k}`} title={v ? "set" : "missing"}><Dot ok={v} />{k}</span>
                   ))}
                 </span>
-                <span className="flex items-center gap-3 text-zinc-500 md:border-l border-zinc-800 md:pl-4">
+                <span className="hidden sm:flex items-center gap-3 text-zinc-500 md:border-l border-zinc-800 md:pl-4">
                   <span className="text-zinc-600">link</span>
                   <span className="flex items-center gap-1.5" data-testid="status-github-connected"><Dot ok={cfg.github_connected} />github</span>
                   <span className="flex items-center gap-1.5" data-testid="status-gemini-connected"><Dot ok={cfg.gemini_connected} />gemini</span>

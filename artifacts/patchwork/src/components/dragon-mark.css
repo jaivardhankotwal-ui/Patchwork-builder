@@ -1,0 +1,15 @@
+.dragon-mark { overflow: visible; display: block; flex-shrink: 0; }
+.dragon-mark .dm-jaw { transform-box: view-box; transform-origin: 40px 62px; transition: transform 260ms cubic-bezier(.2,.7,.2,1); }
+.dragon-mark .dm-eye, .dragon-mark .dm-circuit, .dragon-mark .dm-node { transition: opacity 200ms ease; }
+
+.dm-hover:hover .dragon-mark .dm-eye,
+.dm-hover:focus-visible .dragon-mark .dm-eye { animation: dm-pulse 0.9s ease-in-out infinite; }
+.dm-hover:hover .dragon-mark .dm-circuit,
+.dm-hover:hover .dragon-mark .dm-node { animation: dm-pulse 1.2s ease-in-out infinite; }
+@keyframes dm-pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .dm-hover:hover .dragon-mark .dm-eye,
+  .dm-hover:hover .dragon-mark .dm-circuit,
+  .dm-hover:hover .dragon-mark .dm-node { animation: none; opacity: .7; }
+}
