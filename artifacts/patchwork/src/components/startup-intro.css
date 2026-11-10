@@ -1,7 +1,9 @@
+/* Timeline 3600ms: 0–1100 ambush lunge · 1100–2700 jaw + code-breath · 2700–3600 brand reveal */
 .intro-root {
+  --dw: min(220px, 34vw);
   position: fixed; inset: 0; z-index: 10000; background: #050807; overflow: hidden;
   display: grid; place-items: center; color: #eafff9;
-  animation: intro-out 800ms 2200ms ease both;
+  animation: intro-out 900ms 2700ms ease both;
 }
 .intro-root::after {
   content: ''; position: absolute; inset: 0; pointer-events: none;
@@ -9,33 +11,54 @@
 }
 @keyframes intro-out { 0%,55% { opacity: 1; } 100% { opacity: 0; } }
 
+/* Shake owns its own wrapper transform */
+.intro-shake { animation: intro-shake 340ms 900ms linear both; }
+@keyframes intro-shake {
+  0%,100% { transform: translate(0,0); } 15% { transform: translate(-7px,4px); } 30% { transform: translate(6px,-5px); }
+  45% { transform: translate(-4px,-3px); } 60% { transform: translate(3px,3px); } 80% { transform: translate(-1px,1px); }
+}
 .intro-stage { position: relative; width: min(760px, 94vw); height: min(420px, 70vh); }
-.intro-dragon { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(240px, 38vw); animation: intro-dragon-move 400ms 800ms ease forwards, intro-dragon-fade 700ms 2200ms ease forwards; }
-.intro-dragon .dragon-mark { width: 100%; height: auto; }
-@keyframes intro-dragon-move { to { left: 0; transform: translateY(-50%); } }
-@keyframes intro-dragon-fade { to { opacity: 0; } }
+.intro-stage::before { /* impact shockwave */
+  content: ''; position: absolute; left: 50%; top: 50%; width: 220px; height: 220px; margin: -110px 0 0 -110px;
+  border-radius: 50%; border: 2px solid rgb(0 255 204 / .7); opacity: 0; pointer-events: none;
+  animation: intro-wave 600ms 900ms ease-out forwards;
+}
+@keyframes intro-wave { 0% { opacity: .9; transform: scale(.3); } 100% { opacity: 0; transform: scale(3.2); } }
 
-/* 0–.8s laser draw */
+/* Position wrapper: centered during ambush, then mouth slides to flame origin */
+.intro-dragon { position: absolute; left: 50%; top: 50%; width: var(--dw); transform: translate(-50%, -50%);
+  animation: intro-dragon-move 320ms 1100ms cubic-bezier(.5,0,.2,1) forwards; }
+@keyframes intro-dragon-move { to { left: 0; transform: translate(0, -50%); } }
+.intro-dragon-lunge { transform-origin: 50% 50%; animation: intro-lunge 1100ms cubic-bezier(.7,0,.2,1.2) both; }
+@keyframes intro-lunge {
+  0% { opacity: 0; transform: scale(.08) rotate(-16deg); }
+  20% { opacity: .6; }
+  78% { opacity: 1; transform: scale(1.15) rotate(3deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+.intro-dragon-fade { animation: intro-dissolve 700ms 2700ms cubic-bezier(.6,0,.3,1) forwards; }
+@keyframes intro-dissolve { to { opacity: 0; transform: scale(.7) rotate(25deg); } }
+.intro-dragon .dragon-mark { width: 100%; height: auto; }
+
 .intro-root .dm-draw { stroke-dasharray: 1; stroke-dashoffset: 1; fill-opacity: 0;
-  animation: intro-draw 700ms cubic-bezier(.6,0,.3,1) both, intro-fill 300ms 600ms ease forwards; }
+  animation: intro-draw 800ms 100ms cubic-bezier(.6,0,.3,1) both, intro-fill 300ms 700ms ease forwards; }
 @keyframes intro-draw { to { stroke-dashoffset: 0; } }
 @keyframes intro-fill { to { fill-opacity: 1; } }
-.intro-root .dm-eye { opacity: 0; animation: intro-ignite 300ms 550ms ease-out forwards; }
+.intro-root .dm-eye { opacity: 0; animation: intro-ignite 300ms 850ms ease-out forwards; }
 @keyframes intro-ignite { 0% { opacity: 0; } 60% { opacity: 1; fill: #ffffff; } 100% { opacity: 1; } }
-/* .8–2.2s jaw opens */
-.intro-root .dm-jaw { animation: intro-jaw 1400ms 800ms cubic-bezier(.3,.7,.3,1) both; }
-@keyframes intro-jaw { 0% { transform: rotate(0); } 20%,85% { transform: rotate(22deg); } 100% { transform: rotate(4deg); } }
+.intro-root .dm-jaw { animation: intro-jaw 1600ms 1100ms cubic-bezier(.3,.7,.3,1) both; }
+@keyframes intro-jaw { 0% { transform: rotate(0); } 18%,85% { transform: rotate(30deg); } 100% { transform: rotate(6deg); } }
 
-/* flame particles */
-.intro-flame { position: absolute; left: min(210px, 33vw); top: 54%; width: 0; height: 0; }
+/* flame — origin at the mouth (viewBox x≈108/120, y≈60/120) after the move */
+.intro-flame { position: absolute; left: calc(var(--dw) * .88); top: 51%; width: 0; height: 0; }
 .intro-flame-ribbon {
-  position: absolute; left: 0; top: -45px; width: min(520px, 65vw); height: 90px;
+  position: absolute; left: 0; top: -45px; width: min(520px, 62vw); height: 90px;
   background: linear-gradient(90deg, #eafff9, #00ffcc 12%, rgb(16 185 129 / .4) 65%, transparent);
   clip-path: polygon(0 50%, 23% 32%, 16% 12%, 45% 29%, 70% 0, 62% 34%, 100% 40%, 73% 58%, 88% 90%, 50% 71%, 24% 94%, 32% 66%);
   transform-origin: left center; opacity: 0; filter: drop-shadow(0 0 10px #00ffcc);
-  animation: intro-ribbon 1400ms 800ms ease both;
+  animation: intro-ribbon 1600ms 1250ms ease both;
 }
-.intro-flame-ribbon-secondary { top: -27px; height: 60px; mix-blend-mode: screen; animation-delay: 850ms; }
+.intro-flame-ribbon-secondary { top: -27px; height: 60px; mix-blend-mode: screen; animation-delay: 1320ms; }
 @keyframes intro-ribbon {
   0% { opacity: 0; transform: scaleX(.05) scaleY(.4); }
   20% { opacity: .6; transform: scaleX(.7) scaleY(.8); }
@@ -48,7 +71,7 @@
   font-family: var(--app-font-mono); font-size: clamp(9px, 1.6vw, 13px); font-weight: 600;
   color: #7dffe3; text-shadow: 0 0 8px #00ffcc, 0 0 18px rgb(16 185 129 / .7);
   opacity: 0; will-change: transform, opacity;
-  animation: intro-breathe calc(2200ms - var(--d)) var(--d) cubic-bezier(.2,.6,.3,1) both, intro-swirl 800ms 2200ms cubic-bezier(.6,0,.3,1) forwards;
+  animation: intro-breathe calc(2700ms - var(--d)) var(--d) cubic-bezier(.2,.6,.3,1) both, intro-swirl 800ms 2700ms cubic-bezier(.6,0,.3,1) forwards;
 }
 @keyframes intro-breathe {
   0% { opacity: 0; transform: translate(0,0) scale(.4); }
@@ -60,16 +83,15 @@
   100% { transform: translate(var(--cx), 0) rotate(360deg) scale(.2); opacity: 0; }
 }
 
-/* 2.2–3s brand */
 .intro-brand { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 10px; pointer-events: none; }
 .intro-word {
   font-family: var(--app-font-mono); font-weight: 700; letter-spacing: .18em;
   font-size: clamp(30px, 8vw, 68px);
   background: linear-gradient(90deg, #00ffcc, #10b981); -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 0 14px rgb(0 255 204 / .6));
-  opacity: 0; animation: intro-coalesce 500ms 2250ms cubic-bezier(.2,.7,.2,1) both;
+  opacity: 0; animation: intro-coalesce 500ms 2750ms cubic-bezier(.2,.7,.2,1) both;
 }
-.intro-caption { font-family: var(--app-font-mono); font-size: clamp(9px, 2.4vw, 12px); letter-spacing: .24em; color: #6ee7b7; opacity: 0; animation: intro-coalesce 450ms 2400ms ease both; }
+.intro-caption { font-family: var(--app-font-mono); font-size: clamp(9px, 2.4vw, 12px); letter-spacing: .24em; color: #6ee7b7; opacity: 0; animation: intro-coalesce 450ms 2950ms ease both; }
 @keyframes intro-coalesce { from { opacity: 0; transform: scale(1.12); letter-spacing: .5em; } to { opacity: 1; transform: none; } }
 
 .intro-skip {
@@ -82,14 +104,16 @@
 .intro-skip:focus-visible { outline: 2px solid #00ffcc; outline-offset: 2px; }
 
 .startup-dashboard { transition: opacity 500ms ease; }
-.startup-dashboard-hidden { opacity: 0; animation: intro-dashboard-reveal 400ms 2600ms ease forwards; }
+.startup-dashboard-hidden { opacity: 0; animation: intro-dashboard-reveal 400ms 3200ms ease forwards; }
 @keyframes intro-dashboard-reveal { to { opacity: 1; } }
 
-/* Reduced motion: static dragon + brand, soft crossfade only */
-.intro-reduced { animation: intro-rm-out 600ms 2400ms linear both; }
+/* Reduced motion: static dragon + brand, soft crossfade only — no lunge/shake/flames */
+.intro-reduced { animation: intro-rm-out 600ms 3000ms linear both; }
 @keyframes intro-rm-out { to { opacity: 0; } }
+.intro-reduced .intro-shake, .intro-reduced .intro-dragon-lunge, .intro-reduced .intro-dragon-fade,
 .intro-reduced .dm-draw, .intro-reduced .dm-eye, .intro-reduced .dm-jaw,
-.intro-reduced .intro-dragon, .intro-reduced .intro-word, .intro-reduced .intro-caption { animation: none; opacity: 1; stroke-dashoffset: 0; fill-opacity: 1; }
-.intro-reduced .intro-dragon { position: static; transform: none; margin: 0 auto 20px; width: 140px; }
+.intro-reduced .intro-dragon, .intro-reduced .intro-word, .intro-reduced .intro-caption { animation: none; opacity: 1; transform: none; stroke-dashoffset: 0; fill-opacity: 1; }
+.intro-reduced .intro-stage::before { display: none; }
+.intro-reduced .intro-dragon { position: static; margin: 0 auto 20px; width: 140px; }
 .intro-reduced .intro-stage { display: flex; flex-direction: column; justify-content: center; height: auto; }
 .intro-reduced .intro-brand { position: static; }

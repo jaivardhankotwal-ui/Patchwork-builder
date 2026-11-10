@@ -4,7 +4,7 @@ import { useReducedMotion } from "@/lib/reduced-motion";
 import "./startup-intro.css";
 
 const SESSION_KEY = "patchwork.intro.document";
-const DURATION = 3000;
+const DURATION = 3600;
 
 // A refresh creates a new document/timeOrigin. Route changes, visibility changes
 // and React remounts do not. Keep the session flag tied to this document so a
@@ -34,7 +34,7 @@ const PARTICLES = Array.from({ length: 18 }, (_, i) => {
     y: Math.round(spread * (0.4 + t)),
     r: Math.round(Math.sin(i * 1.7) * 14),
     cx: Math.round(150 - t * 40),
-    d: 820 + (i % 9) * 110,
+    d: 1150 + (i % 9) * 120,
   };
 });
 
@@ -97,8 +97,8 @@ export function StartupIntro({ children }: { children: ReactNode }) {
       {playing && (
         <div key={run} className={`intro-root ${reduced ? "intro-reduced" : ""}`} data-testid="startup-intro"
           role="dialog" aria-modal="true" aria-label="Starting Patchwork">
-          <div className="intro-stage" aria-hidden="true">
-            <div className="intro-dragon"><DragonMark size={240} /></div>
+          <div className="intro-shake" aria-hidden="true"><div className="intro-stage">
+            <div className="intro-dragon"><div className="intro-dragon-lunge"><div className="intro-dragon-fade"><DragonMark size={240} /></div></div></div>
             {!reduced && (
               <div className="intro-flame">
                 <span className="intro-flame-ribbon" />
@@ -114,7 +114,7 @@ export function StartupIntro({ children }: { children: ReactNode }) {
               <div className="intro-word">PATCHWORK</div>
               <div className="intro-caption">incident → evidence → patch</div>
             </div>
-          </div>
+          </div></div>
           <button ref={skipRef} type="button" className="intro-skip" onClick={finish} data-testid="button-skip-intro">
             Skip <span aria-hidden="true">· Esc</span>
           </button>

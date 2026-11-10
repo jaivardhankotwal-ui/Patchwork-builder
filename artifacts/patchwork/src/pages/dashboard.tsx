@@ -124,7 +124,7 @@ export default function Dashboard() {
       <header className="sticky top-0 z-20 border-b border-cyan-400/15 bg-[hsl(195_45%_4%/0.7)] backdrop-blur-md">
         <div className="max-w-[1400px] mx-auto px-4 md:px-6 h-14 flex items-center gap-2 sm:gap-4">
           <div className="dm-hover flex items-center gap-2 shrink-0" data-testid="brand-patchwork">
-            <DragonMark size={30} />
+            <DragonMark size={38} />
             <span className="font-semibold tracking-tight">Patchwork</span>
             <span className="hidden lg:inline text-xs text-zinc-500">incident → evidence → patch</span>
           </div>
