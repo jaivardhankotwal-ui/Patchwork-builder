@@ -52,6 +52,7 @@ export default function Dashboard() {
   const [termRun, setTermRun] = useState<TerminalRun | null>(null);
   const [termOpen, setTermOpen] = useState(false);
   const [flash, setFlash] = useState<{ run: number; incidentId: number } | null>(null);
+  const ingestRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     if (!flash) return;
     const timeout = window.setTimeout(() => setFlash(null), 2000);
@@ -93,6 +94,15 @@ export default function Dashboard() {
     simulate.mutate({ data: { repository: repo.trim(), branch: branch.trim() } }, {
       onSuccess: (s) => { setTrace(s.stack_trace); setReveal({ id: ++revealSeq.current, text: s.stack_trace }); setSimulated(true); setSimPath(s.file_path); },
     });
+  };
+
+  const loadMockTrace = (stackTrace: string) => {
+    setTrace(stackTrace);
+    setReveal({ id: ++revealSeq.current, text: stackTrace });
+    setSimulated(true);
+    setSimPath(null);
+    setSelectedId(null);
+    ingestRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const runAnalyze = () => {
@@ -181,7 +191,7 @@ export default function Dashboard() {
 
         <div className="grid xl:grid-cols-[440px_1fr] gap-6 items-start">
           {/* Ingest */}
-          <section className={`pw-glass rounded-xl xl:sticky xl:top-20 ${analyze.isPending ? "pw-active-card" : ""}`}>
+          <section ref={ingestRef} className={`pw-glass scroll-mt-20 rounded-xl xl:sticky xl:top-20 ${analyze.isPending ? "pw-active-card" : ""}`}>
             <div className="px-4 py-3 border-b border-zinc-800 flex items-center gap-2 text-sm">
               <span className="font-mono text-[11px] text-cyan-400">01</span><span className="font-medium">Ingest incident</span>
             </div>
@@ -211,7 +221,7 @@ export default function Dashboard() {
                 </div>
                 {simulated && (
                   <div className="flex items-center justify-between gap-2 px-3 py-1.5 text-[11px] bg-cyan-500/[0.07] border-b border-cyan-500/20 text-cyan-200">
-                    <span className="truncate">Simulated trace · synthetic error against real file <span className="font-mono">{simPath}</span></span>
+                    <span className="truncate">Simulated trace · synthetic input{simPath && <> against real file <span className="font-mono">{simPath}</span></>}</span>
                     <button onClick={() => { setSimulated(false); setSimPath(null); setTrace(""); setReveal(null); }} className="shrink-0 text-cyan-300/70 hover:text-cyan-200" data-testid="button-clear-simulation"><X className="size-3" /></button>
                   </div>
                 )}
@@ -304,7 +314,7 @@ export default function Dashboard() {
                     {job.error && <p role="alert" className="w-full text-rose-300">{job.error}</p>}
                   </div>
                 ))}
-                <MockQueueItems />
+                <MockQueueItems onLoadTrace={loadMockTrace} />
               </section>
             )}
 
