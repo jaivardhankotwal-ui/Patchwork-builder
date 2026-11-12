@@ -30,10 +30,10 @@ Production incident diagnosis using GitHub source/commit history and Gemini, wit
 
 ## Architecture decisions
 
-- Draft PR creation is an explicit human action. It may create a branch and commit the proposed file but never merges or deploys. The current base-file content must match the diagnosis snapshot.
-- No authentication was requested. This is a single shared workspace; add access control before publicly exposing private repository contents or incidents.
+- PR creation is an explicit action. Manual Review defaults to draft-only. Opt-in Autonomous Auto-Merge requires separate confirmation, a generated regression test, `main` as base, a matching SHA-pinned PR and GitHub's clean mergeable state. Validation is simulated only; never fabricate passing CI, bypass protections, force-push or directly deploy. The current base-file content must match the diagnosis snapshot.
+- The dashboard remains shared, but real Auto-Merge requires a Clerk session and an exact repository administrator grant from trusted backend metadata. Signups never self-promote. Only the workspace operator can grant/revoke access using `merge-admin`; see `docs/webhooks.md`. Further restrict private incident reads before public exposure.
 - Under 60 seconds is a target, dependent on provider latency and source size, not a guarantee.
-- Slack alerts run after diagnosis and draft PR creation; delivery failures are persisted separately and never discard a diagnosis or PR.
+- Slack alerts run after diagnosis and PR actions, using the confirmed draft/open/merged outcome; delivery failures are persisted separately and never discard a diagnosis or PR.
 - External Sentry webhooks require raw-body HMAC SHA256 verification with `SENTRY_WEBHOOK_SECRET`. A durable database queue processes accepted deliveries and deduplicates identical signed bodies.
 - See `docs/webhooks.md` for receiver payloads, Slack setup and safe simulation.
 

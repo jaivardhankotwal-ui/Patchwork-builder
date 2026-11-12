@@ -1,4 +1,4 @@
-# Patchwork: draft PRs, Slack and Sentry
+# Patchwork: PR autonomy, Slack and Sentry
 
 ## Human verification
 
@@ -10,11 +10,39 @@ If the target file changed, re-analyze first. Older diagnoses can proceed only i
 
 New diagnoses also generate a regression test for the crash edge case, using repository test conventions when available. The **Regression test** tab beside **Code diff** shows its complete content, proposed path, rationale, and suggested run command. Neither the test nor its command is automatically executed. Review imports, dependencies and assertions, and verify that it fails before the fix and passes afterward.
 
-New draft PRs for these diagnoses include both the patched source and a new test file (in separate retry-safe commits). Existing files at the generated test path are never overwritten; if the base path already exists, re-analyze. Interrupted operations reuse identical generated files on the patch branch and reject conflicting content. Older diagnoses without tests remain readable; re-analyze to generate a test. Existing PRs are returned unchanged.
+New draft PRs for these diagnoses include both the patched source and a new test file (in separate retry-safe commits). Existing files at the generated test path are never overwritten; if the base path already exists, re-analyze. Interrupted operations reuse identical generated files on the patch branch and reject conflicting content. Older diagnoses without tests remain readable; re-analyze to generate a test. Manual Review reuses an existing PR without changing its code or readiness.
 
-The incident becomes **Draft PR Opened** and retains its GitHub link across reloads. This is an unresolved incident, not a deployed fix. Marking it resolved is a separate manual action.
+The incident becomes **Draft PR Created** and retains its GitHub link across reloads. This is an unresolved incident, not a deployed fix. Marking it resolved is a separate manual action.
 
 The connected GitHub account must have permission to create branches and pull requests in the target repository. `GITHUB_TOKEN`, when configured in Secrets, takes precedence over the managed GitHub connection.
+
+## Opt-in Autonomous Auto-Merge
+
+Section 01's **Autonomy Level** defaults to **Manual Review (Draft PR)** on every page load. Selecting **Autonomous Auto-Merge** does not trigger a write or merge by itself; it changes the explicit action in the selected diagnosis card. Webhooks and diagnosis completion never create or merge PRs automatically.
+
+The Auto-Merge action requires confirmation describing the repository, `main` target, real merge consequences, potential repository deployment triggers, and **SIMULATED ONLY — tests NOT executed** validation. Synthetic incidents still write real GitHub changes if confirmed.
+
+`POST /api/incidents/:id/create-pr` accepts `{ "mode": "manual" }` (also the default for an empty/omitted body) or `{ "mode": "auto_merge", "confirm_auto_merge": true }`. Auto-Merge requires the incident to target `main` and include a generated regression test. It initially creates a draft containing the fix and test, verifies the PR identity and exact two-file contents at a pinned head SHA, updates the report, and uses GitHub's GraphQL `markPullRequestReadyForReview` mutation when necessary. It requests `PUT /repos/{owner}/{repo}/pulls/{number}/merge` only if GitHub reports a clean, ready, mergeable PR.
+
+No real test is executed and **no passing GitHub check/status is fabricated**. Required CI, approvals and other protections must be satisfied independently; pending/unknown states, conflicts or blocked reviews stop the merge. No rules are changed, bypass flags sent, or force pushes performed. A repository that disables merge commits must be handled manually.
+
+The API saves the PR URL before attempting the merge and returns a persisted `pr_outcome` with live state (`draft`, `open`, `closed`, `merged`, or `unknown`), requested mode, validation label, error, and confirmed merge SHA. The ledger displays **Auto-Merged to main** only on confirmed GitHub success, counts merged incidents with resolved records, and retains the validation caveat. Slack uses the actual PR outcome.
+
+Blocked or failed attempts retain the PR link and describe the problem; a draft marked ready is shown as **PR Open · Not Merged**, not mislabeled draft. A lost merge response is reconciled with one read, never an automatic second merge request. Explicit retries reuse the saved branch/PR, with a per-incident database lock preventing concurrent attempts. **Refresh GitHub status** is a read-only reconciliation action and does not merge. PR state reflects the last reconciliation, not continuous GitHub monitoring.
+
+### Merge administrator access
+
+Auto-Merge is protected server-side by Clerk session authentication and a repository-specific administrator grant in trusted Clerk public metadata. Signing up alone never grants permission. Anonymous requests return **401 before database/GitHub access**; signed-in users without a grant return **403 before any GitHub write**. The API does not allow cross-origin browser writes. Manual draft creation and the existing shared dashboard remain available as before; keep private repository data in a trusted workspace.
+
+Sign in through **Admin sign in** in the navbar. In Auto-Merge mode, an unauthorized diagnosis card shows your account ID. The workspace operator must independently verify the account owner, then run this operator-only command in the trusted workspace shell:
+
+```sh
+pnpm --filter @workspace/api-server run merge-admin -- user_ID owner/repo
+```
+
+Use `--revoke` as the final argument to remove that repository's grant. The CLI requires a verified email, preserves unrelated grants/metadata, and never creates or merges a PR. It must be run against the intended environment's Clerk instance; development and production identities are separate. There is no public role-editing endpoint or first-signup administrator promotion.
+
+The card checks access for its saved incident repository (not the editable form field), and the server rechecks the current grant before every Auto-Merge attempt. Permission lookup failures fail closed. Use the workspace Auth pane to manage sign-in providers; all browser authentication uses Clerk's session cookies.
 
 ## Slack
 

@@ -8,8 +8,31 @@
 import * as zod from 'zod';
 
 
+export const getMergeAccessQueryRepositoryRegExp = new RegExp('^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$');
+
+
+export const GetMergeAccessQueryParams = zod.object({
+  "repository": zod.coerce.string().regex(getMergeAccessQueryRepositoryRegExp)
+})
+
+export const GetMergeAccessResponse = zod.object({
+  "signed_in": zod.boolean(),
+  "allowed": zod.boolean(),
+  "user_id": zod.string().nullable(),
+  "reason": zod.string().nullable()
+})
+
+
 export const CreateIncidentPrParams = zod.object({
   "id": zod.coerce.number().int()
+})
+
+export const createIncidentPrBodyModeDefault = `manual`;
+export const createIncidentPrBodyConfirmAutoMergeDefault = false;
+
+export const CreateIncidentPrBody = zod.object({
+  "mode": zod.enum(['manual', 'auto_merge']).default(createIncidentPrBodyModeDefault),
+  "confirm_auto_merge": zod.boolean().default(createIncidentPrBodyConfirmAutoMergeDefault)
 })
 
 export const CreateIncidentPrResponse = zod.object({
@@ -18,7 +41,7 @@ export const CreateIncidentPrResponse = zod.object({
   "branch": zod.string(),
   "stack_trace": zod.string(),
   "error_type": zod.string(),
-  "status": zod.enum(['active', 'resolved', 'draft_pr_opened']),
+  "status": zod.enum(['active', 'resolved', 'draft_pr_opened', 'pr_opened', 'merged', 'auto_merged']),
   "created_at": zod.string(),
   "elapsed_seconds": zod.number(),
   "simulated": zod.boolean(),
@@ -42,6 +65,13 @@ export const CreateIncidentPrResponse = zod.object({
   "suspect_author_login": zod.string().nullish()
 }),
   "pr_url": zod.string().nullable(),
+  "pr_outcome": zod.union([zod.object({
+  "state": zod.enum(['draft', 'open', 'closed', 'merged', 'unknown']),
+  "mode": zod.enum(['manual', 'auto_merge']),
+  "validation": zod.enum(['not_run', 'simulated']),
+  "error": zod.string().nullable(),
+  "merged_sha": zod.string().nullable()
+}),zod.null()]).optional(),
   "slack_status": zod.enum(['not_configured', 'not_sent', 'sent', 'failed']),
   "slack_error": zod.string().nullable()
 })
@@ -57,7 +87,7 @@ export const SendIncidentSlackResponse = zod.object({
   "branch": zod.string(),
   "stack_trace": zod.string(),
   "error_type": zod.string(),
-  "status": zod.enum(['active', 'resolved', 'draft_pr_opened']),
+  "status": zod.enum(['active', 'resolved', 'draft_pr_opened', 'pr_opened', 'merged', 'auto_merged']),
   "created_at": zod.string(),
   "elapsed_seconds": zod.number(),
   "simulated": zod.boolean(),
@@ -81,6 +111,13 @@ export const SendIncidentSlackResponse = zod.object({
   "suspect_author_login": zod.string().nullish()
 }),
   "pr_url": zod.string().nullable(),
+  "pr_outcome": zod.union([zod.object({
+  "state": zod.enum(['draft', 'open', 'closed', 'merged', 'unknown']),
+  "mode": zod.enum(['manual', 'auto_merge']),
+  "validation": zod.enum(['not_run', 'simulated']),
+  "error": zod.string().nullable(),
+  "merged_sha": zod.string().nullable()
+}),zod.null()]).optional(),
   "slack_status": zod.enum(['not_configured', 'not_sent', 'sent', 'failed']),
   "slack_error": zod.string().nullable()
 })
@@ -187,7 +224,7 @@ export const ListIncidentsResponseItem = zod.object({
   "branch": zod.string(),
   "stack_trace": zod.string(),
   "error_type": zod.string(),
-  "status": zod.enum(['active', 'resolved', 'draft_pr_opened']),
+  "status": zod.enum(['active', 'resolved', 'draft_pr_opened', 'pr_opened', 'merged', 'auto_merged']),
   "created_at": zod.string(),
   "elapsed_seconds": zod.number(),
   "simulated": zod.boolean(),
@@ -211,6 +248,13 @@ export const ListIncidentsResponseItem = zod.object({
   "suspect_author_login": zod.string().nullish()
 }),
   "pr_url": zod.string().nullable(),
+  "pr_outcome": zod.union([zod.object({
+  "state": zod.enum(['draft', 'open', 'closed', 'merged', 'unknown']),
+  "mode": zod.enum(['manual', 'auto_merge']),
+  "validation": zod.enum(['not_run', 'simulated']),
+  "error": zod.string().nullable(),
+  "merged_sha": zod.string().nullable()
+}),zod.null()]).optional(),
   "slack_status": zod.enum(['not_configured', 'not_sent', 'sent', 'failed']),
   "slack_error": zod.string().nullable()
 })
@@ -239,7 +283,7 @@ export const AnalyzeIncidentResponse = zod.object({
   "branch": zod.string(),
   "stack_trace": zod.string(),
   "error_type": zod.string(),
-  "status": zod.enum(['active', 'resolved', 'draft_pr_opened']),
+  "status": zod.enum(['active', 'resolved', 'draft_pr_opened', 'pr_opened', 'merged', 'auto_merged']),
   "created_at": zod.string(),
   "elapsed_seconds": zod.number(),
   "simulated": zod.boolean(),
@@ -263,6 +307,13 @@ export const AnalyzeIncidentResponse = zod.object({
   "suspect_author_login": zod.string().nullish()
 }),
   "pr_url": zod.string().nullable(),
+  "pr_outcome": zod.union([zod.object({
+  "state": zod.enum(['draft', 'open', 'closed', 'merged', 'unknown']),
+  "mode": zod.enum(['manual', 'auto_merge']),
+  "validation": zod.enum(['not_run', 'simulated']),
+  "error": zod.string().nullable(),
+  "merged_sha": zod.string().nullable()
+}),zod.null()]).optional(),
   "slack_status": zod.enum(['not_configured', 'not_sent', 'sent', 'failed']),
   "slack_error": zod.string().nullable()
 })
@@ -282,7 +333,7 @@ export const UpdateIncidentResponse = zod.object({
   "branch": zod.string(),
   "stack_trace": zod.string(),
   "error_type": zod.string(),
-  "status": zod.enum(['active', 'resolved', 'draft_pr_opened']),
+  "status": zod.enum(['active', 'resolved', 'draft_pr_opened', 'pr_opened', 'merged', 'auto_merged']),
   "created_at": zod.string(),
   "elapsed_seconds": zod.number(),
   "simulated": zod.boolean(),
@@ -306,6 +357,13 @@ export const UpdateIncidentResponse = zod.object({
   "suspect_author_login": zod.string().nullish()
 }),
   "pr_url": zod.string().nullable(),
+  "pr_outcome": zod.union([zod.object({
+  "state": zod.enum(['draft', 'open', 'closed', 'merged', 'unknown']),
+  "mode": zod.enum(['manual', 'auto_merge']),
+  "validation": zod.enum(['not_run', 'simulated']),
+  "error": zod.string().nullable(),
+  "merged_sha": zod.string().nullable()
+}),zod.null()]).optional(),
   "slack_status": zod.enum(['not_configured', 'not_sent', 'sent', 'failed']),
   "slack_error": zod.string().nullable()
 })

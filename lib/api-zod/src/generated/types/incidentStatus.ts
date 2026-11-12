@@ -13,4 +13,7 @@ export const IncidentStatus = {
   active: 'active',
   resolved: 'resolved',
   draft_pr_opened: 'draft_pr_opened',
+  pr_opened: 'pr_opened',
+  merged: 'merged',
+  auto_merged: 'auto_merged',
 } as const;

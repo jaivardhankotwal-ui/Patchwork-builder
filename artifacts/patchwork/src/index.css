@@ -1,7 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@layer theme, base, clerk, components, utilities;
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @plugin "@tailwindcss/typography";
+.cl-formFieldInput::placeholder { color: #71717a; opacity: 1; }
+.cl-formButtonPrimary:hover { background: #67e8f9; }
 
 @custom-variant dark (&:is(.dark *));
 

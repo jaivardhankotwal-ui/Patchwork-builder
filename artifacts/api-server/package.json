@@ -4,13 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "merge-admin": "esbuild src/admin/merge-access.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/merge-access.mjs && node dist/merge-access.mjs",
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "esbuild src/lib/guardrails.test.ts --bundle --platform=node --format=cjs --external:pg-native --outfile=dist/guardrails.test.cjs && node --test dist/guardrails.test.cjs"
+    "test": "esbuild src/lib/guardrails.test.ts src/lib/auto-merge.test.ts src/lib/merge-authorization.test.ts ../patchwork/src/lib/pr-status.test.ts --bundle --platform=node --format=cjs --external:pg-native --outdir=dist/tests --outbase=.. --out-extension:.js=.cjs && NODE_ENV=production node --test dist/tests/api-server/src/lib/guardrails.test.cjs dist/tests/api-server/src/lib/auto-merge.test.cjs dist/tests/api-server/src/lib/merge-authorization.test.cjs dist/tests/patchwork/src/lib/pr-status.test.cjs"
   },
   "dependencies": {
+    "@clerk/express": "^2.1.88",
+    "@clerk/shared": "^4.44.1",
     "@google/genai": "^3.0.0",
     "@replit/connectors-sdk": "^0.4.3",
     "@workspace/api-zod": "workspace:*",
@@ -19,6 +22,7 @@
     "cors": "^2.8.6",
     "drizzle-orm": "catalog:",
     "express": "^5.3.0",
+    "http-proxy-middleware": "^4.2.1",
     "pino": "^9.14.0",
     "pino-http": "^10.5.0",
     "zod": "catalog:"

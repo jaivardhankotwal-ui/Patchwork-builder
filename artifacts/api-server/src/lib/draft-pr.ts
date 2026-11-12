@@ -7,7 +7,7 @@ type Dependencies = { request: typeof github; source: typeof sourceFor };
 const live: Dependencies = { request: github, source: sourceFor };
 const fileUrl = (repo: string, file: string) => `${repoUrl(repo)}/contents/${file.split("/").map(encodeURIComponent).join("/")}`;
 
-export function prReport(incident: Incident) {
+export function prReport(incident: Incident, mode: "manual" | "auto_merge" = "manual") {
   const d = incident.diagnosis;
   const fence = "`".repeat(Math.max(3, ...[...incident.stack_trace.matchAll(/`+/g)].map(m => m[0].length + 1)));
   return `## 🚨 Incident Summary & Stack Trace
@@ -39,10 +39,15 @@ ${d.regression_test.description}
 AI-generated test included in this PR. **Not executed or verified by Patchwork.** Review imports, dependencies and assertions; confirm it fails before the fix and passes afterward.` : "No regression test was saved for this older diagnosis. Re-analyze to generate one."}
 
 ## 🛡️ Guardrail Note
-Opened as a Draft PR by Patchwork AI for senior dev verification. Never force-merged.
+${mode === "manual" ? `Opened as a Draft PR by Patchwork AI for senior dev verification. Never force-merged.
 
 - Review the complete diff and run tests before marking ready for review.
-- No automatic merge, force push, or branch-protection bypass is performed.
+- No automatic merge, force push, or branch-protection bypass is performed.` : `Explicit opt-in Autonomous Auto-Merge was requested by the dashboard user.
+
+- Validation is **SIMULATED ONLY — tests were NOT executed**. This is not evidence of correctness.
+- Initially opened as a draft; Patchwork may mark ready and request a SHA-pinned merge after explicit confirmation.
+- GitHub must report a clean, mergeable PR. Required CI, reviews, and branch rules remain in effect.
+- No force push, protection bypass, or deployment is performed by Patchwork. Repository merge automation may deploy changes.`}
 `;
 }
 export async function preparePr(incident: Incident, deps = live) {
@@ -83,7 +88,7 @@ async function readOptionalFile(deps: Dependencies, repository: string, ref: str
     throw err;
   }
 }
-export async function writeDraftPr(incident: Incident, branch: string, baseSha: string, original: string, deps = live) {
+export async function writeDraftPr(incident: Incident, branch: string, baseSha: string, original: string, deps = live, mode: "manual" | "auto_merge" = "manual") {
   const repo = repoUrl(incident.repository);
   const test = incident.diagnosis.regression_test;
   if (test) validateRegressionTest(test, incident.diagnosis.file_path);
@@ -123,7 +128,7 @@ export async function writeDraftPr(incident: Incident, branch: string, baseSha: 
   }
   const pr = await deps.request(`${repo}/pulls`, { method: "POST", body: {
     title: `fix: automated Patchwork fix for ${incident.error_type}`,
-    head: branch, base: incident.branch, draft: true, body: prReport(incident),
+    head: branch, base: incident.branch, draft: true, body: prReport(incident, mode),
   } });
   if (!pr.draft || !/^https:\/\/github\.com\//.test(pr.html_url)) throw new ServiceError("GitHub did not confirm a draft PR. Check the repository before retrying.", 502);
   return pr.html_url as string;

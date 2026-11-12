@@ -110,6 +110,65 @@ export interface Diagnosis {
   suspect_author_login?: string | null;
 }
 
+export interface MergeAccess {
+  signed_in: boolean;
+  allowed: boolean;
+  /** @nullable */
+  user_id: string | null;
+  /** @nullable */
+  reason: string | null;
+}
+
+export type IncidentPrInputMode = typeof IncidentPrInputMode[keyof typeof IncidentPrInputMode];
+
+
+export const IncidentPrInputMode = {
+  manual: 'manual',
+  auto_merge: 'auto_merge',
+} as const;
+
+export interface IncidentPrInput {
+  mode?: IncidentPrInputMode;
+  confirm_auto_merge?: boolean;
+}
+
+export type PrOutcomeState = typeof PrOutcomeState[keyof typeof PrOutcomeState];
+
+
+export const PrOutcomeState = {
+  draft: 'draft',
+  open: 'open',
+  closed: 'closed',
+  merged: 'merged',
+  unknown: 'unknown',
+} as const;
+
+export type PrOutcomeMode = typeof PrOutcomeMode[keyof typeof PrOutcomeMode];
+
+
+export const PrOutcomeMode = {
+  manual: 'manual',
+  auto_merge: 'auto_merge',
+} as const;
+
+export type PrOutcomeValidation = typeof PrOutcomeValidation[keyof typeof PrOutcomeValidation];
+
+
+export const PrOutcomeValidation = {
+  not_run: 'not_run',
+  simulated: 'simulated',
+} as const;
+
+export interface PrOutcome {
+  state: PrOutcomeState;
+  mode: PrOutcomeMode;
+  validation: PrOutcomeValidation;
+  /** @nullable */
+  error: string | null;
+  /** @nullable */
+  merged_sha: string | null;
+}
+
 export type IncidentStatus = typeof IncidentStatus[keyof typeof IncidentStatus];
 
 
@@ -117,6 +176,9 @@ export const IncidentStatus = {
   active: 'active',
   resolved: 'resolved',
   draft_pr_opened: 'draft_pr_opened',
+  pr_opened: 'pr_opened',
+  merged: 'merged',
+  auto_merged: 'auto_merged',
 } as const;
 
 export type IncidentSlackStatus = typeof IncidentSlackStatus[keyof typeof IncidentSlackStatus];
@@ -142,6 +204,7 @@ export interface Incident {
   diagnosis: Diagnosis;
   /** @nullable */
   pr_url: string | null;
+  pr_outcome?: PrOutcome | null;
   slack_status: IncidentSlackStatus;
   /** @nullable */
   slack_error: string | null;
@@ -157,4 +220,11 @@ export interface Summary {
 export interface HealthStatus {
   status: string;
 }
+
+export type GetMergeAccessParams = {
+/**
+ * @pattern ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$
+ */
+repository: string;
+};
 

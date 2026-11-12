@@ -1,26 +1,23 @@
 import { useState } from "react";
-import { AlertTriangle, Check, Clock, Copy, Download, ExternalLink, GitCommit, RotateCcw, ShieldAlert, User, CheckCircle2, FlaskConical, GitPullRequest, Send, Loader2 } from "lucide-react";
-import { useCreateIncidentPr, useSendIncidentSlack, getListIncidentsQueryKey, getGetSummaryQueryKey, type Incident } from "@workspace/api-client-react";
+import { AlertTriangle, Check, Clock, Copy, Download, ExternalLink, GitCommit, RotateCcw, ShieldAlert, User, CheckCircle2, FlaskConical, Send, Loader2 } from "lucide-react";
+import { useSendIncidentSlack, getListIncidentsQueryKey, getGetSummaryQueryKey, type Incident } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { DiffViewer } from "./diff-viewer";
 import { fmtSec, errMsg } from "@/lib/diff";
 import { Typewriter } from "@/components/motion/typewriter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { IncidentPrActions } from "./incident-pr-actions";
+import { isMerged, prStatusLabel, type AutonomyMode } from "@/lib/pr-status";
 
-export function DiagnosisCard({ incident, onToggleStatus, updating }: { incident: Incident; onToggleStatus: () => void; updating: boolean }) {
+export function DiagnosisCard({ incident, mode, onToggleStatus, updating }: { incident: Incident; mode: AutonomyMode; onToggleStatus: () => void; updating: boolean }) {
   const d = incident.diagnosis;
   const [copied, setCopied] = useState(false);
   const qc = useQueryClient();
-  const pr = useCreateIncidentPr();
   const slack = useSendIncidentSlack();
   const refresh = (updated: Incident) => {
     qc.setQueryData<Incident[]>(getListIncidentsQueryKey(), list => list?.map(i => i.id === updated.id ? updated : i));
     qc.invalidateQueries({ queryKey: getListIncidentsQueryKey() });
     qc.invalidateQueries({ queryKey: getGetSummaryQueryKey() });
-  };
-  const openPr = () => {
-    if (!window.confirm(`Create a branch, commit the proposed fix${d.regression_test ? " and generated regression test (not run)" : ""} and open a DRAFT pull request in ${incident.repository} against ${incident.branch}? This writes to GitHub, but will not merge or deploy anything.${incident.simulated ? " This incident is simulated." : ""}`)) return;
-    pr.mutate({ id: incident.id }, { onSuccess: refresh });
   };
   const conf = Math.max(0, Math.min(100, Math.round(d.confidence_score)));
   const confTone = conf >= 75 ? "bg-emerald-400" : conf >= 45 ? "bg-cyan-400" : "bg-rose-400";
@@ -50,13 +47,13 @@ export function DiagnosisCard({ incident, onToggleStatus, updating }: { incident
             <span className="flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded border border-cyan-500/30 text-cyan-300 bg-cyan-500/10"><FlaskConical className="size-3" />Simulated trace</span>
           )}
           <span className={`text-[11px] px-1.5 py-0.5 rounded border ${incident.status === "active" ? "border-cyan-500/30 text-cyan-300" : "border-emerald-500/30 text-emerald-300"}`} data-testid="status-incident">
-            {incident.status === "draft_pr_opened" ? "Draft PR Opened" : incident.status}
+            {prStatusLabel(incident)}
           </span>
         </div>
-        <button onClick={onToggleStatus} disabled={updating} data-testid="button-toggle-status"
+        <button onClick={onToggleStatus} disabled={updating || isMerged(incident)} data-testid="button-toggle-status"
           className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border border-zinc-700 text-zinc-300 hover:border-zinc-500 hover:text-zinc-100 disabled:opacity-50 transition-colors">
           {incident.status !== "resolved" ? <CheckCircle2 className="size-3.5" /> : <RotateCcw className="size-3.5" />}
-          {incident.status !== "resolved" ? "Mark resolved" : "Reopen"}
+          {isMerged(incident) ? "Merged" : incident.status !== "resolved" ? "Mark resolved" : "Reopen"}
         </button>
       </header>
 
@@ -130,26 +127,8 @@ export function DiagnosisCard({ incident, onToggleStatus, updating }: { incident
             ) : <p className="p-4 text-sm text-zinc-400 border border-dashed border-zinc-800 rounded-lg">No regression test was saved with this diagnosis. Re-analyze the incident to generate a fix and its edge-case test.</p>}
           </TabsContent>
         </Tabs>
-        <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-4 space-y-3">
-          <div className="flex items-start gap-2">
-            <ShieldAlert className="size-4 text-cyan-400 shrink-0 mt-0.5" />
-            <div className="text-xs text-zinc-400"><p className="font-medium text-cyan-200 mb-1">Human-in-the-Loop Guardrail</p>
-              A senior developer must review and test this patch. Patchwork only opens draft PRs; it never merges, force-pushes, or deploys them.
-            </div>
-          </div>
-          {incident.pr_url ? (
-            <a href={incident.pr_url} target="_blank" rel="noreferrer" data-testid="link-draft-pr"
-              className="inline-flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 px-3 py-2 text-sm">
-              <GitPullRequest className="size-4" />View Draft PR on GitHub<ExternalLink className="size-3.5" />
-            </a>
-          ) : (
-            <button onClick={openPr} disabled={pr.isPending || !d.original_code_snippet || d.original_code_snippet === d.patched_code_snippet}
-              data-testid="button-create-pr" className="w-full flex justify-center items-center gap-2 rounded-md bg-cyan-500 hover:bg-cyan-400 text-zinc-950 px-3 py-3 font-medium text-sm disabled:opacity-40">
-              {pr.isPending ? <Loader2 className="size-4 animate-spin" /> : <GitPullRequest className="size-4" />}
-              {pr.isPending ? "Creating guarded draft PR…" : "Open Draft PR on GitHub (Human Verification Guardrail)"}
-            </button>
-          )}
-          {pr.isError && <p role="alert" className="text-xs text-rose-300">{errMsg(pr.error)}</p>}
+        <IncidentPrActions incident={incident} mode={mode} refresh={refresh} />
+        <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-3">
             <button onClick={() => slack.mutate({ id: incident.id }, { onSuccess: refresh })} disabled={slack.isPending}
               data-testid="button-send-slack" className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-md border border-zinc-700 hover:border-zinc-500 disabled:opacity-50">

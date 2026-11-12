@@ -11,14 +11,29 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /merge-access:
+    get:
+      operationId: getMergeAccess
+      parameters:
+        - { in: query, name: repository, required: true, schema: { type: string, pattern: '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$' } }
+      responses:
+        "200":
+          description: Current session's repository-scoped merge permission
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MergeAccess" }
   /incidents/{id}/create-pr:
     post:
       operationId: createIncidentPr
       parameters:
         - { in: path, name: id, required: true, schema: { type: integer } }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IncidentPrInput" }
       responses:
         "200":
-          description: Draft pull request opened or existing request returned
+          description: Persisted PR outcome, including blocked or failed merge attempts
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Incident" }
@@ -258,6 +273,28 @@ components:
           items: { type: string }
         source_commit_sha: { type: [string, "null"] }
         suspect_author_login: { type: [string, "null"] }
+    MergeAccess:
+      type: object
+      required: [signed_in, allowed, user_id, reason]
+      properties:
+        signed_in: { type: boolean }
+        allowed: { type: boolean }
+        user_id: { type: [string, "null"] }
+        reason: { type: [string, "null"] }
+    IncidentPrInput:
+      type: object
+      properties:
+        mode: { type: string, enum: [manual, auto_merge], default: manual }
+        confirm_auto_merge: { type: boolean, default: false }
+    PrOutcome:
+      type: object
+      required: [state, mode, validation, error, merged_sha]
+      properties:
+        state: { type: string, enum: [draft, open, closed, merged, unknown] }
+        mode: { type: string, enum: [manual, auto_merge] }
+        validation: { type: string, enum: [not_run, simulated] }
+        error: { type: [string, "null"] }
+        merged_sha: { type: [string, "null"] }
     Incident:
       type: object
       required: [id, repository, branch, stack_trace, error_type, status, created_at, elapsed_seconds, simulated, diagnosis, pr_url, slack_status, slack_error]
@@ -267,12 +304,16 @@ components:
         branch: { type: string }
         stack_trace: { type: string }
         error_type: { type: string }
-        status: { type: string, enum: [active, resolved, draft_pr_opened] }
+        status: { type: string, enum: [active, resolved, draft_pr_opened, pr_opened, merged, auto_merged] }
         created_at: { type: string }
         elapsed_seconds: { type: number }
         simulated: { type: boolean }
         diagnosis: { $ref: "#/components/schemas/Diagnosis" }
         pr_url: { type: [string, "null"] }
+        pr_outcome:
+          anyOf:
+            - $ref: "#/components/schemas/PrOutcome"
+            - type: "null"
         slack_status: { type: string, enum: [not_configured, not_sent, sent, failed] }
         slack_error: { type: [string, "null"] }
     Summary:

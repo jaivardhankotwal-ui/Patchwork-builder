@@ -8,6 +8,7 @@
 import type { Diagnosis } from './diagnosis';
 import type { IncidentSlackStatus } from './incidentSlackStatus';
 import type { IncidentStatus } from './incidentStatus';
+import type { PrOutcome } from './prOutcome';
 
 export interface Incident {
   id: number;
@@ -22,6 +23,7 @@ export interface Incident {
   diagnosis: Diagnosis;
   /** @nullable */
   pr_url: string | null;
+  pr_outcome?: PrOutcome | null;
   slack_status: IncidentSlackStatus;
   /** @nullable */
   slack_error: string | null;

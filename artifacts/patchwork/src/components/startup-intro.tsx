@@ -116,8 +116,8 @@ export function StartupIntro({ children }: { children: ReactNode }) {
               <div className="intro-caption">incident → evidence → patch</div>
               <div className="intro-badges">
                 <span className="intro-badge">AI ASSISTED</span>
-                <span className="intro-badge">HUMAN REVIEW REQUIRED</span>
-                <span className="intro-badge">DRAFT PR ONLY</span>
+                <span className="intro-badge">MANUAL BY DEFAULT</span>
+                <span className="intro-badge">OPT-IN AUTONOMY</span>
               </div>
             </div>
           </div></div>

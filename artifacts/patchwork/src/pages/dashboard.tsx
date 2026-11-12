@@ -19,6 +19,9 @@ import { LaserScan } from "@/components/motion/laser-scan";
 import { TraceReveal } from "@/components/motion/trace-reveal";
 import { DragonMark } from "@/components/dragon-mark";
 import { useIntro } from "@/components/startup-intro";
+import { AutonomySelector } from "@/components/autonomy-selector";
+import { AuthControls } from "@/components/auth-shell";
+import { isDone, isMerged, prStatusLabel, type AutonomyMode } from "@/lib/pr-status";
 
 const REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const LS = "patchwork.config";
@@ -33,6 +36,8 @@ export default function Dashboard() {
   const saved = useMemo(() => { try { return JSON.parse(localStorage.getItem(LS) || "{}"); } catch { return {}; } }, []);
   const [repo, setRepo] = useState<string>(saved.repository ?? "");
   const [branch, setBranch] = useState<string>(saved.branch ?? "main");
+  // Deliberately not persisted: a reload always returns to the safe default.
+  const [autonomy, setAutonomy] = useState<AutonomyMode>("manual");
   useEffect(() => { localStorage.setItem(LS, JSON.stringify({ repository: repo, branch })); }, [repo, branch]);
 
   const [trace, setTrace] = useState("");
@@ -134,6 +139,7 @@ export default function Dashboard() {
             🐉 Replay Intro
           </button>
           <div className="ml-auto min-w-0 flex items-center gap-4 text-[11px] font-mono" data-testid="status-config">
+            <AuthControls />
             {config.isLoading ? <span className="hidden sm:block h-3 w-20 lg:w-56 rounded bg-zinc-800 animate-pulse" /> : config.isError ? (
               <button onClick={() => config.refetch()} className="flex items-center gap-1 text-rose-300"><AlertCircle className="size-3" />config unavailable · retry</button>
             ) : cfg && (
@@ -180,6 +186,7 @@ export default function Dashboard() {
               <span className="font-mono text-[11px] text-cyan-400">01</span><span className="font-medium">Ingest incident</span>
             </div>
             <div className="p-4 space-y-4">
+              <AutonomySelector value={autonomy} onChange={setAutonomy} />
               <div className="grid grid-cols-[1fr_120px] gap-2">
                 <label className="space-y-1">
                   <span className="flex items-center gap-1 text-[11px] text-zinc-500"><Github className="size-3" />Repository</span>
@@ -272,7 +279,7 @@ export default function Dashboard() {
             ) : selected ? (
               <div key={selected.id}
                 className={flash && flash.incidentId === selected.id ? "pw-success-flash" : undefined}>
-                <DiagnosisCard key={selected.id} incident={selected} onToggleStatus={() => setStatus(selected)} updating={update.isPending} />
+                <DiagnosisCard key={selected.id} incident={selected} mode={autonomy} onToggleStatus={() => setStatus(selected)} updating={update.isPending} />
               </div>
             ) : (
               <div className="rounded-xl border border-dashed border-zinc-800 px-6 py-14 text-center">
@@ -329,7 +336,7 @@ function History(p: {
   const rows = useMemo(() => {
     const s = q.toLowerCase();
     return p.list
-      .filter((i) => filter === "all" || (filter === "active" ? i.status !== "resolved" : i.status === filter))
+      .filter((i) => filter === "all" || (filter === "active" ? !isDone(i) : isDone(i)))
       .filter((i) => !s || [i.repository, i.error_type, i.diagnosis.file_path, i.diagnosis.root_cause_summary, i.diagnosis.suspect_author ?? ""].some((f) => f.toLowerCase().includes(s)))
       .sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
   }, [p.list, q, filter]);
@@ -389,11 +396,11 @@ function History(p: {
                   <td className="px-2 py-2.5 font-mono text-right tabular-nums text-zinc-300">{fmtSec(i.elapsed_seconds)}</td>
                   <td className="px-2 py-2.5 text-zinc-500 whitespace-nowrap">{formatDistanceToNow(new Date(i.created_at), { addSuffix: true })}</td>
                   <td className="px-4 py-2.5 text-right">
-                    <button onClick={(e) => { e.stopPropagation(); p.onToggle(i); }} disabled={p.updatingId === i.id} data-testid={`button-status-${i.id}`}
+                    <button onClick={(e) => { e.stopPropagation(); p.onToggle(i); }} disabled={p.updatingId === i.id || isMerged(i)} data-testid={`button-status-${i.id}`}
                       title={i.status !== "resolved" ? "Mark resolved (manual)" : "Reopen"}
                       className={`inline-flex items-center gap-1 px-2 py-1 rounded border transition-colors disabled:opacity-50 ${i.status === "active" ? "border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10" : "border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10"}`}>
                       {p.updatingId === i.id ? <Loader2 className="size-3 animate-spin" /> : i.status === "active" ? <Play className="size-3" /> : <CheckCircle2 className="size-3" />}
-                      {i.status === "draft_pr_opened" ? "Draft PR Opened" : i.status}
+                      {prStatusLabel(i)}
                       {i.status === "resolved" && <RotateCcw className="size-3 opacity-50" />}
                     </button>
                   </td>

@@ -6,6 +6,7 @@ import { notifyDashboard } from "./incident-events";
 const escape = (s: string) => s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 export function slackMessage(incident: Incident) {
   const d = incident.diagnosis;
+  const state = incident.pr_outcome?.state ?? (incident.pr_url ? "draft" : null);
   const header = `🚨 Patchwork AI: Production Crash Diagnosed in ${incident.elapsed_seconds}s`;
   const author = d.suspect_author_login || d.suspect_author?.split(" · ")[0];
   const attribution = d.suspect_commit_sha && author
@@ -16,10 +17,10 @@ export function slackMessage(incident: Incident) {
     { type: "section", text: { type: "mrkdwn", text: `*Error:* ${escape(incident.error_type)}\n*File:* ${escape(d.file_path)}\n${attribution}`.slice(0,2900) } },
     { type: "section", text: { type: "mrkdwn", text: `*Root cause*\n${escape(d.root_cause_summary).slice(0,2800)}` } },
     { type: "context", elements: [{ type: "plain_text", text:
-      `${incident.simulated ? "SIMULATED INCIDENT. " : ""}Draft only — senior developer verification and tests required. Never automatically merged.` }] },
+      `${incident.simulated ? "SIMULATED INCIDENT. " : ""}${state === "merged" ? `Merged to ${incident.branch}.` : state === "open" ? "PR open — not merged." : state === "closed" ? "PR closed without merging." : state === "unknown" ? "PR outcome not confirmed — check GitHub." : "Draft only — senior developer verification and tests required."} ${incident.pr_outcome?.validation === "simulated" ? "Validation SIMULATED ONLY — tests not run." : "Generated tests have not been executed."}` }] },
   ];
   if (incident.pr_url) blocks.push({ type: "actions", elements: [{
-    type: "button", text: { type: "plain_text", text: "Review Draft PR on GitHub" }, url: incident.pr_url,
+    type: "button", text: { type: "plain_text", text: state === "draft" ? "Review Draft PR on GitHub" : state === "merged" ? "View Merged PR on GitHub" : "View PR on GitHub" }, url: incident.pr_url,
   }] });
   else blocks.push({ type: "context", elements: [{ type: "plain_text", text: "No draft PR has been created yet. Open one from the Patchwork diagnosis card." }] });
   return { text: header, blocks, unfurl_links: false, unfurl_media: false };

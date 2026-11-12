@@ -12,6 +12,7 @@ export const incidentsTable = pgTable("incidents", {
   diagnosis: jsonb("diagnosis").notNull(),
   pr_url: text("pr_url"),
   pr_branch: text("pr_branch"),
+  pr_outcome: jsonb("pr_outcome"),
   slack_status: text("slack_status").notNull().default("not_sent"),
   slack_error: text("slack_error"),
 });

@@ -21,10 +21,13 @@ import type {
 
 import type {
   Config,
+  GetMergeAccessParams,
   HealthStatus,
   Incident,
   IncidentInput,
+  IncidentPrInput,
   IncidentUpdate,
+  MergeAccess,
   RepositoryInput,
   SentryInput,
   Simulation,
@@ -59,6 +62,84 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   return result;
 };
 
+export const getGetMergeAccessUrl = (params: GetMergeAccessParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/merge-access?${stringifiedParams}` : `/api/merge-access`
+}
+
+export const getMergeAccess = async (params: GetMergeAccessParams, options?: Parameters<typeof customFetch>[1]): Promise<MergeAccess> => {
+
+  return customFetch<MergeAccess>(getGetMergeAccessUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMergeAccessQueryKey = (params?: GetMergeAccessParams,) => {
+    return [
+    `/api/merge-access`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetMergeAccessQueryOptions = <TData = Awaited<ReturnType<typeof getMergeAccess>>, TError = ErrorType<unknown>>(params: GetMergeAccessParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMergeAccess>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMergeAccessQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMergeAccess>>> = ({ signal }) => getMergeAccess(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMergeAccess>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMergeAccessQueryResult = NonNullable<Awaited<ReturnType<typeof getMergeAccess>>>
+export type GetMergeAccessQueryError = ErrorType<unknown>
+
+
+
+export function useGetMergeAccess<TData = Awaited<ReturnType<typeof getMergeAccess>>, TError = ErrorType<unknown>>(
+ params: GetMergeAccessParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMergeAccess>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMergeAccessQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getCreateIncidentPrUrl = (id: number,) => {
 
 
@@ -67,14 +148,29 @@ export const getCreateIncidentPrUrl = (id: number,) => {
   return `/api/incidents/${id}/create-pr`
 }
 
-export const createIncidentPr = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Incident> => {
+export const createIncidentPr = async (id: number,
+    incidentPrInput?: IncidentPrInput, options?: Parameters<typeof customFetch>[1]): Promise<Incident> => {
 
-  return customFetch<Incident>(getCreateIncidentPrUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Incident>(getCreateIncidentPrUrl(id),
   {
     ...options,
-    method: 'POST'
-
-
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(incidentPrInput)
   }
 );}
 
@@ -99,9 +195,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof createIncidentPr>>, CreateIncidentPrMutationVariables> = (props) => {
-          const {id} = props ?? {};
+          const {id,data} = props ?? {};
 
-          return  createIncidentPr(id,requestOptions)
+          return  createIncidentPr(id,data,requestOptions)
         }
 
 
@@ -112,9 +208,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type CreateIncidentPrMutationResult = NonNullable<Awaited<ReturnType<typeof createIncidentPr>>>
-
+    export type CreateIncidentPrMutationBody = BodyType<IncidentPrInput> | undefined
     export type CreateIncidentPrMutationError = ErrorType<unknown>
-    export type CreateIncidentPrMutationVariables = {id: number}
+    export type CreateIncidentPrMutationVariables = {id: number;data?: BodyType<IncidentPrInput>}
 
     export const useCreateIncidentPr = <TError = ErrorType<unknown>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createIncidentPr>>, TError,CreateIncidentPrMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

@@ -5,6 +5,7 @@ import { AnalyzeIncidentBody, AnalyzeIncidentResponse, SimulateIncidentBody, Upd
 import { github, sourceFor, treeFor, ServiceError } from "../lib/github";
 import { runAnalysis } from "../lib/incident-service";
 import { notifyDashboard } from "../lib/incident-events";
+import { incidentPrStatus, type PrOutcome } from "../lib/auto-merge";
 
 const router: IRouter = Router();
 router.get("/config", async (_req, res) => {
@@ -23,8 +24,9 @@ router.get("/incidents", async (_req, res) => {
 });
 router.get("/summary", async (_req, res) => {
   const rows = await db.select({status: incidentsTable.status, seconds: incidentsTable.elapsed_seconds}).from(incidentsTable);
-  res.json(GetSummaryResponse.parse({ total: rows.length, active: rows.filter(x => x.status !== "resolved").length,
-    resolved: rows.filter(x => x.status === "resolved").length,
+  const done = (status: string) => ["resolved", "merged", "auto_merged"].includes(status);
+  res.json(GetSummaryResponse.parse({ total: rows.length, active: rows.filter(x => !done(x.status)).length,
+    resolved: rows.filter(x => done(x.status)).length,
     average_seconds: rows.length ? rows.reduce((n,x) => n+x.seconds,0)/rows.length : 0 }));
 });
 router.post("/simulate", async (req, res) => {
@@ -54,7 +56,9 @@ router.patch("/incidents/:id", async (req, res) => {
   const body = UpdateIncidentBody.safeParse(req.body);
   if (!params.success || !body.success) { res.status(400).json({error:"Invalid incident or status."}); return; }
   const [existing] = await db.select().from(incidentsTable).where(eq(incidentsTable.id, params.data.id));
-  const status = body.data.status === "active" && existing?.pr_url ? "draft_pr_opened" : body.data.status;
+  const status = body.data.status === "active" && existing?.pr_url
+    ? existing.pr_outcome ? incidentPrStatus(existing.pr_outcome as PrOutcome) : "draft_pr_opened"
+    : body.data.status;
   const [row] = await db.update(incidentsTable).set({ status }).where(eq(incidentsTable.id, params.data.id)).returning();
   if (!row) { res.status(404).json({error:"Incident not found."}); return; }
   res.json(AnalyzeIncidentResponse.parse(row));

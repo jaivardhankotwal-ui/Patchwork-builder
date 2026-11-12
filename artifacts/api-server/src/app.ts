@@ -1,9 +1,11 @@
 import express, { type Express } from "express";
-import cors from "cors";
+import { clerkMiddleware } from "@clerk/express";
+import { publishableKeyFromHost } from "@clerk/shared/keys";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { ServiceError } from "./lib/github";
+import { CLERK_PROXY_PATH, clerkProxyMiddleware, getClerkProxyHost } from "./middlewares/clerkProxyMiddleware";
 
 const app: Express = express();
 
@@ -26,12 +28,16 @@ app.use(
     },
   }),
 );
-app.use(cors());
+app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
+// Browser APIs are same-origin; do not permit credentialed cross-origin writes.
 app.use(express.json({
   limit: "256kb",
   verify: (req, _res, buf) => { (req as typeof req & { rawBody?: Buffer }).rawBody = Buffer.from(buf); },
 }));
 app.use(express.urlencoded({ extended: true }));
+app.use(clerkMiddleware((req) => ({
+  publishableKey: publishableKeyFromHost(getClerkProxyHost(req) ?? "", process.env.CLERK_PUBLISHABLE_KEY),
+})));
 
 app.use("/api", router);
 app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
