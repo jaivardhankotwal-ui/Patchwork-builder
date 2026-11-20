@@ -2,8 +2,8 @@
 name: Intro visual direction
 description: User-selected dragon and wordmark style for the Patchwork startup intro
 ---
-Use a 2D dragon based on the old Patchwork dragon/logo, with futuristic neon PATCHWORK lettering that matches the dashboard.
+Use the original 2D flame-and-code-breath intro with the old Patchwork dragon/logo.
 
-**Why:** After trying a 3D dragon, the user requested “make the dragon 2D like the logo of the patchwork reference from old dragon” and “all animation should be same.”
+**Why:** After trying 3D and a 2D breakup animation, the user requested “change it to old intro flames one The og.”
 
-**How to apply:** Preserve the approach, furious movement, smooth dragon-to-word breakup, and playback controls when refining the intro. Do not return to a shaded 3D dragon unless requested.
+**How to apply:** Keep the original flight, glowing flames/code particles, wordmark reveal, and playback controls. Do not bring back the 3D or body-to-letter breakup versions unless requested.

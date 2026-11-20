@@ -1,3 +1,3 @@
 - [Patchwork scope](patchwork-scope.md) — diagnosis target, human-approved draft PRs, Slack/webhook scope, and truthful integration status.
 - [Workspace test runtime](workspace-test-runtime.md) — bundle source-exported workspace imports for Node tests instead of externalizing them.
-- [Intro visual direction](intro-visual-direction.md) — use the original 2D logo dragon and futuristic dashboard-matched neon lettering.
+- [Intro visual direction](intro-visual-direction.md) — use the original 2D dragon flame-and-code intro, not the later breakup versions.

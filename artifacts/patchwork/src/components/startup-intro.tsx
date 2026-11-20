@@ -1,18 +1,24 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { DragonIntro2D } from "@/components/intro2d/dragon-intro-2d";
+import { FullBodyDragon } from "@/components/full-body-dragon";
 import { useReducedMotion } from "@/lib/reduced-motion";
 import "./startup-intro.css";
 
 const SESSION_KEY = "patchwork.intro.document";
-// Timeline (from scene readiness): 0-5s approach, 5-6s full-size hold,
-// 4.2-6.1s roar/lunge, 6-10.35s region-by-region body breakup into shards
-// (P,A,T,C,H,W,O,R,K onsets 0.45s apart), letters locked by 10.85s,
-// hold, 12.2-12.8s overlay fade.
-const DURATION = 12800;
-const EXIT_FADE = 600;
+const DURATION = 3800;
 const REDUCED_DURATION = 1500;
-const FALLBACK_DURATION = 2400;
-const READY_TIMEOUT = 6000;
+const SNIPPETS = ["0101", "git diff", "def fix():", ">>> PATCH", "{status: 200}", "ZeroDivisionError -> RESOLVED"];
+const PARTICLES = Array.from({ length: 18 }, (_, i) => {
+  const t = i / 17;
+  const spread = Math.sin(i * 2.399) * 46;
+  return {
+    text: SNIPPETS[i % SNIPPETS.length],
+    x: Math.round(60 + t * 340 + (i % 3) * 18),
+    y: Math.round(spread * (0.4 + t)),
+    r: Math.round(Math.sin(i * 1.7) * 14),
+    cx: Math.round(200 + t * 60),
+    d: 1250 + (i % 9) * 110,
+  };
+});
 
 // A refresh creates a new document/timeOrigin. Route changes, visibility changes
 // and React remounts do not. Keep the session flag tied to this document so a
@@ -35,48 +41,46 @@ type Ctx = { replay: (trigger?: HTMLElement | null) => void; playing: boolean };
 const IntroContext = createContext<Ctx>({ replay: () => {}, playing: false });
 export const useIntro = () => useContext(IntroContext);
 
-type Phase = "loading" | "running" | "failed";
-
 function IntroOverlay({ reduced, finish, skipRef }: { reduced: boolean; finish: () => void; skipRef: React.RefObject<HTMLButtonElement | null> }) {
-  const [phase, setPhase] = useState<Phase>("loading");
-  const [leaving, setLeaving] = useState(false);
-
-  const onReady = useCallback(() => setPhase((p) => (p === "loading" ? "running" : p)), []);
-  const onError = useCallback(() => setPhase("failed"), []);
-
-  // Safety net: if the scene never becomes ready, fall back instead of hanging.
   useEffect(() => {
-    if (phase !== "loading") return;
-    const t = window.setTimeout(() => setPhase("failed"), READY_TIMEOUT);
-    return () => window.clearTimeout(t);
-  }, [phase]);
-
-  // The playback clock starts only once the scene has rendered its first frame.
-  useEffect(() => {
-    if (phase === "loading") return;
-    const total = phase === "failed" ? FALLBACK_DURATION : reduced ? REDUCED_DURATION : DURATION;
-    const fadeAt = Math.max(0, total - EXIT_FADE);
-    const a = window.setTimeout(() => setLeaving(true), fadeAt);
-    const b = window.setTimeout(finish, total);
-    return () => { window.clearTimeout(a); window.clearTimeout(b); };
-  }, [phase, reduced, finish]);
+    const timer = window.setTimeout(finish, reduced ? REDUCED_DURATION : DURATION);
+    return () => window.clearTimeout(timer);
+  }, [reduced, finish]);
 
   return (
-    <div className={`intro-root intro-${phase} ${reduced ? "intro-reduced" : ""} ${leaving ? "intro-leaving" : ""}`}
-      data-testid="startup-intro" role="dialog" aria-modal="true" aria-label="Starting Patchwork"
-      style={{ "--intro-exit": `${EXIT_FADE}ms` } as CSSProperties}>
-      {phase !== "failed" && <DragonIntro2D reduced={reduced} onReady={onReady} onError={onError} />}
-      <div className="intro-vignette" aria-hidden="true" />
-      {phase === "loading" && <div className="intro-loading" aria-hidden="true"><span /></div>}
-      {phase === "failed" && (
-        <div className="intro-fallback" data-testid="intro-fallback">
-          <div className="intro-fallback-word">PATCHWORK</div>
-          <div className="intro-fallback-note">Animation unavailable · starting dashboard</div>
+    <div className={`intro-root ${reduced ? "intro-reduced" : ""}`}
+      data-testid="startup-intro" role="dialog" aria-modal="true" aria-label="Starting Patchwork">
+      <div className="intro-shake" aria-hidden="true">
+        <div className="intro-stage">
+          <div className="intro-dragon">
+            <div className="intro-dragon-fly">
+              <FullBodyDragon />
+              {!reduced && (
+                <div className="intro-flame">
+                  <span className="intro-flame-ribbon" />
+                  <span className="intro-flame-ribbon intro-flame-ribbon-secondary" />
+                  {PARTICLES.map((particle, index) => (
+                    <span key={index} className="intro-p" style={{
+                      "--x": `${particle.x}px`, "--y": `${particle.y}px`,
+                      "--r": `${particle.r}deg`, "--cx": `${particle.cx}px`,
+                      "--d": `${particle.d}ms`,
+                    } as CSSProperties}>{particle.text}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="intro-brand">
+            <div className="intro-word">PATCHWORK</div>
+            <div className="intro-caption">incident → evidence → patch</div>
+            <div className="intro-badges">
+              <span className="intro-badge">AI ASSISTED</span>
+              <span className="intro-badge">MANUAL BY DEFAULT</span>
+              <span className="intro-badge">OPT-IN AUTONOMY</span>
+            </div>
+          </div>
         </div>
-      )}
-      {phase === "running" && (
-        <div className="intro-caption" aria-hidden="true">incident → evidence → patch</div>
-      )}
+      </div>
       <span className="sr-only" aria-live="polite">Patchwork is starting</span>
       <button ref={skipRef} type="button" className="intro-skip" onClick={finish} data-testid="button-skip-intro">
         Skip <span aria-hidden="true">· Esc</span>
