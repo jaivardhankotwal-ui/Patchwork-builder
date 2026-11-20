@@ -1,4 +1,4 @@
-/* 3D dragon intro shell. Timing is driven from JS (scene readiness), not CSS delays. */
+/* 2D dragon intro shell. Timing is driven from JS (scene readiness), not CSS delays. */
 .intro-root {
   position: fixed;
   inset: 0;
@@ -40,7 +40,7 @@
 .intro-caption {
   position: absolute;
   left: 50%;
-  top: calc(50% + clamp(34px, 7vw, 74px));
+  top: calc(50% + clamp(48px, 9.5vw, 130px));
   transform: translateX(-50%);
   white-space: nowrap;
   font-family: var(--app-font-mono);

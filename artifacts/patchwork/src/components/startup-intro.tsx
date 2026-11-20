@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { DragonIntro3D } from "@/components/intro3d/dragon-intro-3d";
+import { DragonIntro2D } from "@/components/intro2d/dragon-intro-2d";
 import { useReducedMotion } from "@/lib/reduced-motion";
 import "./startup-intro.css";
 
@@ -65,13 +65,13 @@ function IntroOverlay({ reduced, finish, skipRef }: { reduced: boolean; finish: 
     <div className={`intro-root intro-${phase} ${reduced ? "intro-reduced" : ""} ${leaving ? "intro-leaving" : ""}`}
       data-testid="startup-intro" role="dialog" aria-modal="true" aria-label="Starting Patchwork"
       style={{ "--intro-exit": `${EXIT_FADE}ms` } as CSSProperties}>
-      {phase !== "failed" && <DragonIntro3D reduced={reduced} onReady={onReady} onError={onError} />}
+      {phase !== "failed" && <DragonIntro2D reduced={reduced} onReady={onReady} onError={onError} />}
       <div className="intro-vignette" aria-hidden="true" />
       {phase === "loading" && <div className="intro-loading" aria-hidden="true"><span /></div>}
       {phase === "failed" && (
         <div className="intro-fallback" data-testid="intro-fallback">
           <div className="intro-fallback-word">PATCHWORK</div>
-          <div className="intro-fallback-note">3D renderer unavailable · starting dashboard</div>
+          <div className="intro-fallback-note">Animation unavailable · starting dashboard</div>
         </div>
       )}
       {phase === "running" && (
