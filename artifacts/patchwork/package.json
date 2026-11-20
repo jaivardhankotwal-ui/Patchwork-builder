@@ -76,8 +76,6 @@
   },
   "dependencies": {
     "@clerk/react": "^6.18.6",
-    "@clerk/themes": "^2.4.57",
-    "@react-three/fiber": "^9.8.2",
-    "three": "^0.187.0"
+    "@clerk/themes": "^2.4.57"
   }
 }

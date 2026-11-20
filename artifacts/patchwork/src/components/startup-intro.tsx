@@ -1,11 +1,24 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { DragonFlightScene } from "@/components/dragon-flight-scene";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { FullBodyDragon } from "@/components/full-body-dragon";
 import { useReducedMotion } from "@/lib/reduced-motion";
 import "./startup-intro.css";
 
 const SESSION_KEY = "patchwork.intro.document";
-const DURATION = 8000;
-const REDUCED_DURATION = 2500;
+const DURATION = 3800;
+const REDUCED_DURATION = 1500;
+const SNIPPETS = ["0101", "git diff", "def fix():", ">>> PATCH", "{status: 200}", "ZeroDivisionError -> RESOLVED"];
+const PARTICLES = Array.from({ length: 18 }, (_, i) => {
+  const t = i / 17;
+  const spread = Math.sin(i * 2.399) * 46;
+  return {
+    text: SNIPPETS[i % SNIPPETS.length],
+    x: Math.round(60 + t * 340 + (i % 3) * 18),
+    y: Math.round(spread * (0.4 + t)),
+    r: Math.round(Math.sin(i * 1.7) * 14),
+    cx: Math.round(200 + t * 60),
+    d: 1250 + (i % 9) * 110,
+  };
+});
 
 // A refresh creates a new document/timeOrigin. Route changes, visibility changes
 // and React remounts do not. Keep the session flag tied to this document so a
@@ -86,17 +99,38 @@ export function StartupIntro({ children }: { children: ReactNode }) {
       {playing && (
         <div key={run} className={`intro-root ${reduced ? "intro-reduced" : ""}`} data-testid="startup-intro"
           role="dialog" aria-modal="true" aria-label="Starting Patchwork">
-          <div className="intro-scene" aria-hidden="true">
-            <DragonFlightScene reduced={reduced} />
-            <div className="intro-brand">
-              <span className="intro-caption">incident <i>→</i> evidence <i>→</i> patch</span>
-              <div className="intro-badges">
-                <span className="intro-badge">AI ASSISTED</span>
-                <span className="intro-badge">MANUAL BY DEFAULT</span>
-                <span className="intro-badge">OPT-IN AUTONOMY</span>
+          <div className="intro-shake" aria-hidden="true">
+            <div className="intro-stage">
+              <div className="intro-dragon">
+                <div className="intro-dragon-fly">
+                  <FullBodyDragon />
+                  {!reduced && (
+                    <div className="intro-flame">
+                      <span className="intro-flame-ribbon" />
+                      <span className="intro-flame-ribbon intro-flame-ribbon-secondary" />
+                      {PARTICLES.map((particle, index) => (
+                        <span key={index} className="intro-p" style={{
+                          "--x": `${particle.x}px`,
+                          "--y": `${particle.y}px`,
+                          "--r": `${particle.r}deg`,
+                          "--cx": `${particle.cx}px`,
+                          "--d": `${particle.d}ms`,
+                        } as CSSProperties}>{particle.text}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="intro-brand">
+                <div className="intro-word">PATCHWORK</div>
+                <div className="intro-caption">incident → evidence → patch</div>
+                <div className="intro-badges">
+                  <span className="intro-badge">AI ASSISTED</span>
+                  <span className="intro-badge">MANUAL BY DEFAULT</span>
+                  <span className="intro-badge">OPT-IN AUTONOMY</span>
+                </div>
               </div>
             </div>
-            <div className="intro-index"><span>PATCHWORK / SYSTEM READY</span><span>01 — 03</span></div>
           </div>
           <button ref={skipRef} type="button" className="intro-skip" onClick={finish} data-testid="button-skip-intro">
             Skip <span aria-hidden="true">· Esc</span>
