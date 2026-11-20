@@ -1,0 +1,3 @@
+.fb-dragon { display: block; width: 100%; height: auto; overflow: visible; }
+.fb-wing { transform-box: view-box; transform-origin: 240px 122px; }
+.fb-tail { transform-box: view-box; transform-origin: 165px 165px; }

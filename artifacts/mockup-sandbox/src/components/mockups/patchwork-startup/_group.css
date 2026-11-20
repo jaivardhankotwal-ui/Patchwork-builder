@@ -1,0 +1,15 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --background: 195 45% 4%;
+  --foreground: 220 14% 90%;
+  --app-font-sans: 'Geist', ui-sans-serif, sans-serif;
+  --app-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+html, body, #root {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100%;
+  background: #050807;
+}
