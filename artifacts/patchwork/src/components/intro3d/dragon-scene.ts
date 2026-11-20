@@ -6,14 +6,16 @@ import { buildGlyphGeometry } from "./glyphs";
 
 export const TIMING = {
   approach: 5.0, // pinpoint -> full size
-  lettersStart: 6.0, // after full-size hold
-  perLetter: 0.5, // strictly serial
-  dragonFadeEnd: 11.0,
-  total: 12.0,
+  lettersStart: 6.0, // breakup onset, after the roar
+  perLetter: 0.45, // serial region-by-region breakup stagger
+  regionDissolve: 0.72, // surface of one anatomical region erodes into shards
+  letterBuild: 1.25, // region onset -> letter locked in its slot
+  total: 12.8,
 };
 const WORD = "PATCHWORK";
-const LETTERS_END = TIMING.lettersStart + WORD.length * TIMING.perLetter; // 10.5
-const FADE_START = TIMING.lettersStart + (WORD.length - 1) * TIMING.perLetter; // last detach
+const GLYPH_DELAY = 0.2;
+const GLYPH_FLY = TIMING.letterBuild - GLYPH_DELAY;
+const LETTERS_END = TIMING.lettersStart + (WORD.length - 1) * TIMING.perLetter + TIMING.letterBuild; // 10.85
 
 export type DragonSceneOptions = { reduced: boolean; onReady: () => void; onError: (reason: string) => void };
 export type DragonSceneHandle = { dispose: () => void };
@@ -74,7 +76,30 @@ export function createDragonScene(host: HTMLElement, opts: DragonSceneOptions): 
   const hornMat = new THREE.MeshStandardMaterial({ color: 0xcfe9dd, roughness: 0.3, metalness: 0.25, emissive: 0x0b5c48, emissiveIntensity: 0.35 });
   const membraneMat = new THREE.MeshStandardMaterial({ color: 0x0f5a47, roughness: 0.6, metalness: 0.1, emissive: 0x0b4a3b, emissiveIntensity: 0.7, side: THREE.DoubleSide, transparent: true, opacity: 0.88, depthWrite: false });
   const dragonMats = [scaleMat, bellyMat, boneMat, accentMat, hornMat, membraneMat];
-  const baseOpacity = new Map<THREE.Material, number>(dragonMats.map((m) => [m, m.opacity]));
+  // Region-driven surface dissolve: each fragment belongs to the nearest region
+  // anchor and is discarded cell by cell as that region's progress rises, with a
+  // teal ember edge where the surface is breaking.
+  const uC = Array.from({ length: 9 }, () => new THREE.Vector3(1e5, 1e5, 1e5));
+  const uP: number[] = new Array(9).fill(0);
+  const dissolveU = { uC: { value: uC }, uP: { value: uP } };
+  for (const m of dragonMats) {
+    m.onBeforeCompile = (sh) => {
+      sh.uniforms.uC = dissolveU.uC;
+      sh.uniforms.uP = dissolveU.uP;
+      sh.vertexShader = sh.vertexShader
+        .replace("#include <common>", "#include <common>\nvarying vec3 vDW;\nvarying vec3 vDL;")
+        .replace("#include <project_vertex>", "#include <project_vertex>\nvDL = position;\nvDW = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+      sh.fragmentShader = sh.fragmentShader
+        .replace("#include <common>", "#include <common>\nvarying vec3 vDW;\nvarying vec3 vDL;\nuniform vec3 uC[9];\nuniform float uP[9];")
+        .replace("#include <clipping_planes_fragment>", `#include <clipping_planes_fragment>
+  float dBest = 1e9; float dPr = 0.0;
+  for (int i = 0; i < 9; i++) { float dd = distance(vDW, uC[i]); if (dd < dBest) { dBest = dd; dPr = uP[i]; } }
+  float dN = fract(sin(dot(floor(vDL * 11.0), vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+  if (dN < dPr) discard;
+  float dEdge = dPr > 0.0 ? 1.0 - smoothstep(0.0, 0.16, dN - dPr) : 0.0;`)
+        .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(0.1, 1.0, 0.82) * dEdge * 1.8;");
+    };
+  }
 
   // ---------- lights ----------
   scene.add(new THREE.HemisphereLight(0x5fffe0, 0x020806, 0.45));
@@ -128,11 +153,13 @@ export function createDragonScene(host: HTMLElement, opts: DragonSceneOptions): 
   // torso
   add(body, sphere(1), scaleMat, [0, 0, 0], [0.78, 0.68, 1.5]);
   add(body, sphere(1), bellyMat, [0, -0.2, 0.08], [0.6, 0.5, 1.32]);
-  add(body, sphere(1), scaleMat, [0, 0.12, 0.95], [0.62, 0.62, 0.7]); // chest
-  for (let i = 0; i < 8; i++) {
-    const z = 1.0 - i * 0.3;
+  add(body, sphere(1), scaleMat, [0, 0.14, 0.98], [0.74, 0.74, 0.8]); // heavy chest
+  add(body, sphere(1), bellyMat, [0, -0.12, 1.12], [0.56, 0.52, 0.6]); // keel
+  for (const s of [-1, 1]) add(body, sphere(1), scaleMat, [s * 0.42, 0.34, 0.72], [0.36, 0.32, 0.46]); // shoulder mass
+  for (let i = 0; i < 9; i++) {
+    const z = 1.1 - i * 0.29;
     const y = 0.68 * Math.sqrt(Math.max(0, 1 - (z / 1.5) ** 2));
-    add(body, new THREE.ConeGeometry(0.07, 0.28 - i * 0.012, 6), accentMat, [0, y + 0.08, z], undefined, [-0.35, 0, 0]);
+    add(body, new THREE.ConeGeometry(0.09, 0.46 - i * 0.022, 4), accentMat, [0, y + 0.12, z], undefined, [-0.6, 0, 0]);
   }
   const chestLight = new THREE.PointLight(0x00ffcc, 2, 3.5, 2);
   chestLight.position.set(0, 0.1, 1.6);
@@ -148,26 +175,32 @@ export function createDragonScene(host: HTMLElement, opts: DragonSceneOptions): 
     const r = 0.33 - i * 0.025;
     add(seg, sphere(r), scaleMat, [0, 0, 0], [1, 0.95, 1.25]);
     add(seg, sphere(r * 0.8), bellyMat, [0, -r * 0.4, 0.02], [0.9, 0.7, 1.2]);
-    add(seg, new THREE.ConeGeometry(0.05, 0.2, 6), accentMat, [0, r * 0.95, 0], undefined, [-0.5, 0, 0]);
+    add(seg, new THREE.ConeGeometry(0.065, 0.32, 4), accentMat, [0, r * 0.95, 0], undefined, [-0.75, 0, 0]);
     neck.push(seg);
     parent = seg;
   }
   const head = new THREE.Group();
   head.position.set(0, 0.04, 0.28);
   parent.add(head);
-  add(head, sphere(1), scaleMat, [0, 0.02, 0], [0.3, 0.26, 0.36]);
-  add(head, new THREE.CapsuleGeometry(0.15, 0.42, 8, 16), scaleMat, [0, 0.0, 0.42], [1.05, 0.75, 1], [Math.PI / 2, 0, 0]);
-  add(head, sphere(1), scaleMat, [0, 0.13, 0.12], [0.24, 0.08, 0.2]); // brow
+  add(head, sphere(1), scaleMat, [0, 0.02, 0], [0.34, 0.28, 0.38]);
+  add(head, new THREE.CapsuleGeometry(0.16, 0.44, 8, 16), scaleMat, [0, 0.0, 0.42], [1.12, 0.72, 1], [Math.PI / 2, 0, 0]);
+  add(head, new THREE.ConeGeometry(0.05, 0.22, 4), hornMat, [0, 0.12, 0.62], undefined, [0.9, 0, 0]); // nasal horn
   const jaw = new THREE.Group();
   jaw.position.set(0, -0.1, 0.06);
   head.add(jaw);
-  add(jaw, new THREE.CapsuleGeometry(0.11, 0.42, 8, 14), bellyMat, [0, -0.02, 0.34], [1.1, 0.6, 1], [Math.PI / 2, 0, 0]);
+  add(jaw, new THREE.CapsuleGeometry(0.12, 0.44, 8, 14), bellyMat, [0, -0.02, 0.34], [1.15, 0.6, 1], [Math.PI / 2, 0, 0]);
   for (const s of [-1, 1]) {
-    add(head, new THREE.ConeGeometry(0.075, 0.7, 10), hornMat, [s * 0.16, 0.24, -0.16], undefined, [-2.2, 0, s * -0.35]);
-    add(head, new THREE.ConeGeometry(0.045, 0.38, 8), hornMat, [s * 0.24, 0.12, -0.12], undefined, [-2.0, 0, s * -0.9]);
-    add(head, sphere(0.055), accentMat, [s * 0.17, 0.08, 0.2]);
+    // brow ridge slants down toward the snout centre: a scowl, not a stare
+    add(head, new THREE.BoxGeometry(0.2, 0.05, 0.12), boneMat, [s * 0.13, 0.15, 0.2], undefined, [0.15, s * 0.2, s * 0.5]);
+    add(head, new THREE.OctahedronGeometry(1, 0), accentMat, [s * 0.165, 0.085, 0.22], [0.085, 0.022, 0.045], [0, s * 0.25, s * 0.38]); // slit eye
+    add(head, new THREE.ConeGeometry(0.09, 0.95, 6), hornMat, [s * 0.16, 0.24, -0.16], undefined, [-2.3, 0, s * -0.4]);
+    add(head, new THREE.ConeGeometry(0.055, 0.5, 6), hornMat, [s * 0.25, 0.12, -0.12], undefined, [-2.0, 0, s * -0.95]);
+    add(head, new THREE.ConeGeometry(0.04, 0.3, 5), hornMat, [s * 0.28, -0.05, -0.05], undefined, [-1.8, 0, s * -1.3]); // cheek spike
     add(head, sphere(0.025), accentMat, [s * 0.07, 0.07, 0.74]);
-    for (let k = 0; k < 3; k++) add(head, new THREE.ConeGeometry(0.02, 0.08, 5), hornMat, [s * 0.11, -0.1, 0.5 + k * 0.1], undefined, [Math.PI, 0, 0]);
+    add(head, new THREE.ConeGeometry(0.032, 0.2, 5), hornMat, [s * 0.1, -0.12, 0.58], undefined, [Math.PI, 0, 0]); // fang
+    for (let k = 0; k < 3; k++) add(head, new THREE.ConeGeometry(0.02, 0.1, 5), hornMat, [s * 0.11, -0.1, 0.36 + k * 0.08], undefined, [Math.PI, 0, 0]);
+    add(jaw, new THREE.ConeGeometry(0.026, 0.15, 5), hornMat, [s * 0.09, 0.07, 0.5]); // lower fang
+    for (let k = 0; k < 2; k++) add(jaw, new THREE.ConeGeometry(0.018, 0.08, 5), hornMat, [s * 0.1, 0.05, 0.3 + k * 0.08]);
   }
 
   // wings
@@ -236,7 +269,7 @@ export function createDragonScene(host: HTMLElement, opts: DragonSceneOptions): 
     ankle.position.set(0, -0.42, 0);
     knee.add(ankle);
     add(ankle, sphere(1), scaleMat, [0, -0.02, 0.06], [0.13, 0.07, 0.18]);
-    for (const k of [-1, 0, 1]) add(ankle, new THREE.ConeGeometry(0.03, 0.16, 6), accentMat, [k * 0.07, -0.05, 0.24], undefined, [Math.PI / 2 + 0.5, 0, k * 0.2]);
+    for (const k of [-1, 0, 1]) add(ankle, new THREE.ConeGeometry(0.035, 0.24, 5), hornMat, [k * 0.075, -0.07, 0.25], undefined, [Math.PI / 2 + 0.85, 0, k * 0.25]); // hooked talons
     return { hip, knee, ankle, front, s };
   };
   const legs = [buildLeg(-1, true), buildLeg(1, true), buildLeg(-1, false), buildLeg(1, false)];
@@ -251,7 +284,7 @@ export function createDragonScene(host: HTMLElement, opts: DragonSceneOptions): 
     parent.add(seg);
     const r = 0.34 * (1 - i / (TAIL_N + 2));
     add(seg, sphere(r), scaleMat, [0, 0, 0], [1, 0.9, 1.35]);
-    if (i % 2 === 0) add(seg, new THREE.ConeGeometry(r * 0.25, r * 0.8, 6), accentMat, [0, r * 0.9, 0], undefined, [-0.4, 0, 0]);
+    add(seg, new THREE.ConeGeometry(r * 0.28, r * (i % 2 ? 0.8 : 1.15), 4), accentMat, [0, r * 0.9, 0], undefined, [-0.7, 0, 0]);
     tail.push(seg);
     parent = seg;
   }
@@ -267,6 +300,7 @@ export function createDragonScene(host: HTMLElement, opts: DragonSceneOptions): 
 
   // ---------- glyphs ----------
   type Glyph = { mesh: THREE.Mesh; mat: THREE.MeshStandardMaterial; halo: THREE.Sprite; width: number; detached: boolean; from: { p: THREE.Vector3; q: THREE.Quaternion; s: number } };
+  // Each letter is born from one anatomical region; the anchor marks its centre.
   const mounts: Array<[THREE.Object3D, [number, number, number], [number, number, number], number]> = [
     [head, [0, 0.4, -0.04], [-0.25, 0, 0], 0.3], // P between the horns
     [neck[2], [0, -0.2, 0.14], [0.5, 0, 0], 0.26], // A on the throat
@@ -278,22 +312,101 @@ export function createDragonScene(host: HTMLElement, opts: DragonSceneOptions): 
     [legs[1].hip, [0, -0.28, 0.16], [0, 0, 0], 0.24], // R right foreleg
     [tail[4], [0, 0.3, 0.05], [-0.95, 0, 0], 0.3], // K tail, front tilted toward camera
   ];
-  const glyphs: Glyph[] = WORD.split("").map((ch, i) => {
+  const anchors = mounts.map(([par, p, r]) => {
+    const o = new THREE.Object3D();
+    o.position.set(...p);
+    o.rotation.set(...r);
+    par.add(o);
+    return o;
+  });
+  const glyphs: Glyph[] = WORD.split("").map((ch) => {
     const geo = buildGlyphGeometry(ch);
     const bb = geo.boundingBox!;
-    const mat = new THREE.MeshStandardMaterial({ color: 0xcffff2, roughness: 0.25, metalness: 0.4, emissive: 0x00ffcc, emissiveIntensity: 0.55 });
+    const mat = new THREE.MeshStandardMaterial({ color: 0xcffff2, roughness: 0.25, metalness: 0.4, emissive: 0x00ffcc, emissiveIntensity: 0.55, transparent: true, opacity: 0 });
     const mesh = new THREE.Mesh(geo, mat);
-    const [par, p, r, s] = mounts[i];
-    mesh.position.set(...p);
-    mesh.rotation.set(...r);
-    mesh.scale.setScalar(s);
-    par.add(mesh);
+    mesh.visible = false;
+    scene.add(mesh);
     const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0x00ffcc, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 }));
     halo.scale.set(2.6, 2.6, 1);
     halo.position.z = -0.2;
     mesh.add(halo);
     return { mesh, mat, halo, width: bb.max.x - bb.min.x, detached: false, from: { p: new THREE.Vector3(), q: new THREE.Quaternion(), s: 1 } };
   });
+
+  // ---------- shards: sampled from the real dragon triangles ----------
+  const SHARDS_PER = isPhone ? 24 : 40;
+  const SHARD_N = SHARDS_PER * WORD.length;
+  const shardMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35, metalness: 0.4, emissive: 0x00ffcc, emissiveIntensity: 0.45, flatShading: true });
+  const shardMesh = new THREE.InstancedMesh(new THREE.OctahedronGeometry(1, 0), shardMat, SHARD_N);
+  shardMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  shardMesh.frustumCulled = false;
+  scene.add(shardMesh);
+  type Shard = { mesh: THREE.Mesh; a: number; b: number; c: number; u: number; v: number; region: number; r: number; s0: number; lp: THREE.Vector3; spin: THREE.Vector3; sg: number; launched: boolean; p0: THREE.Vector3; out: THREE.Vector3 };
+  const shards: Shard[] = [];
+  const colA = new THREE.Color(0x1f6b52);
+  const colB = new THREE.Color(0x7dffe3);
+  const sampleGlyphPoint = (geo: THREE.BufferGeometry, out: THREE.Vector3) => {
+    const pos = geo.getAttribute("position") as THREE.BufferAttribute;
+    const idx = geo.index;
+    const tris = Math.floor((idx ? idx.count : pos.count) / 3);
+    const t = Math.floor(rnd() * tris) * 3;
+    const vi = (k: number) => (idx ? idx.getX(t + k) : t + k);
+    let u = rnd(), v = rnd();
+    if (u + v > 1) { u = 1 - u; v = 1 - v; }
+    const A = new THREE.Vector3().fromBufferAttribute(pos, vi(0));
+    const B = new THREE.Vector3().fromBufferAttribute(pos, vi(1));
+    const C = new THREE.Vector3().fromBufferAttribute(pos, vi(2));
+    return out.copy(A).multiplyScalar(1 - u - v).addScaledVector(B, u).addScaledVector(C, v);
+  };
+  const sampleShards = () => {
+    dragon.updateMatrixWorld(true);
+    for (const w of wings) updateMembrane(w);
+    const aw = anchors.map((a) => a.getWorldPosition(new THREE.Vector3()));
+    type Tri = { mesh: THREE.Mesh; a: number; b: number; c: number; area: number };
+    const buckets: Tri[][] = anchors.map(() => []);
+    const va = new THREE.Vector3(), vb = new THREE.Vector3(), vc = new THREE.Vector3(), cen = new THREE.Vector3();
+    dragon.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      const pos = m.geometry.getAttribute("position") as THREE.BufferAttribute;
+      const idx = m.geometry.index;
+      const tris = Math.floor((idx ? idx.count : pos.count) / 3);
+      const step = Math.max(1, Math.floor(tris / 90));
+      for (let t = 0; t < tris; t += step) {
+        const a = idx ? idx.getX(t * 3) : t * 3, b = idx ? idx.getX(t * 3 + 1) : t * 3 + 1, c = idx ? idx.getX(t * 3 + 2) : t * 3 + 2;
+        va.fromBufferAttribute(pos, a).applyMatrix4(m.matrixWorld);
+        vb.fromBufferAttribute(pos, b).applyMatrix4(m.matrixWorld);
+        vc.fromBufferAttribute(pos, c).applyMatrix4(m.matrixWorld);
+        cen.copy(va).add(vb).add(vc).divideScalar(3);
+        vb.sub(va); vc.sub(va);
+        const area = vb.cross(vc).length() * 0.5 * step;
+        if (area <= 1e-6) continue;
+        let best = 0, bd = Infinity;
+        aw.forEach((p, i) => { const d = p.distanceToSquared(cen); if (d < bd) { bd = d; best = i; } });
+        buckets[best].push({ mesh: m, a, b, c, area });
+      }
+    });
+    buckets.forEach((list, region) => {
+      if (!list.length) return;
+      const total = list.reduce((s, x) => s + x.area, 0);
+      for (let n = 0; n < SHARDS_PER; n++) {
+        let pick = rnd() * total, tri = list[0];
+        for (const x of list) { pick -= x.area; if (pick <= 0) { tri = x; break; } }
+        let u = rnd(), v = rnd();
+        if (u + v > 1) { u = 1 - u; v = 1 - v; }
+        const sh: Shard = {
+          mesh: tri.mesh, a: tri.a, b: tri.b, c: tri.c, u, v, region, r: n / SHARDS_PER * 0.85 + rnd() * 0.15,
+          s0: 0.035 + rnd() * 0.05, lp: sampleGlyphPoint(glyphs[region].mesh.geometry, new THREE.Vector3()),
+          spin: new THREE.Vector3(rnd() * 6 - 3, rnd() * 6 - 3, rnd() * 6 - 3), sg: rnd() < 0.5 ? -1 : 1,
+          launched: false, p0: new THREE.Vector3(), out: new THREE.Vector3(),
+        };
+        shardMesh.setColorAt(shards.length, tmpCol.copy(colA).lerp(colB, rnd() * 0.8));
+        shards.push(sh);
+      }
+    });
+    if (shardMesh.instanceColor) shardMesh.instanceColor.needsUpdate = true;
+  };
+  const tmpCol = new THREE.Color();
 
   // ---------- layout ----------
   const resize = () => {
@@ -332,7 +445,6 @@ export function createDragonScene(host: HTMLElement, opts: DragonSceneOptions): 
   // ---------- animation ----------
   let phase = 0;
   let last = 0;
-  let fadedMats = false;
   const pose = (t: number, dt: number) => {
     // approach: interpolate log-distance so apparent size grows evenly
     const p = smoother(t / TIMING.approach);
@@ -344,6 +456,8 @@ export function createDragonScene(host: HTMLElement, opts: DragonSceneOptions): 
     const drift = (1 - p) * k;
     dragon.position.x += Math.sin(p * Math.PI * 1.3) * 0.9 * drift;
     dragon.position.y += Math.sin(p * Math.PI) * 0.45 * drift - 0.1;
+    const roar = Math.pow(Math.sin(Math.PI * clamp01((t - 4.2) / 1.9)), 0.8) + 0.45 * Math.sin(Math.PI * clamp01((t - 6.3) / 2.6));
+    dragon.position.addScaledVector(viewDir, 0.35 * roar); // lunges toward the viewer
     const settle = p;
     dragon.rotation.set(
       0.18 - 0.12 * settle + 0.04 * Math.sin(t * 0.8),
@@ -352,37 +466,39 @@ export function createDragonScene(host: HTMLElement, opts: DragonSceneOptions): 
     );
 
     // wing beat: strong during flight, slower hover once full size
-    const freq = THREE.MathUtils.lerp(1.35, 0.85, smoother((t - 4) / 2));
+    const freq = THREE.MathUtils.lerp(1.6, 1.15, smoother((t - 4) / 2));
     phase += dt * freq * Math.PI * 2;
-    const f = Math.sin(phase + 0.35 * Math.sin(phase));
+    const f = Math.sin(phase + 0.62 * Math.sin(phase)); // snapping downstroke
     const g = Math.sin(phase - 0.9);
-    const amp = THREE.MathUtils.lerp(0.62, 0.42, smoother((t - 4) / 2));
+    const amp = THREE.MathUtils.lerp(0.78, 0.62, smoother((t - 4) / 2));
     for (const w of wings) {
       w.root.rotation.set(0, w.s * (-0.08 + 0.12 * f), w.s * (0.38 + amp * f));
       w.elbow.rotation.set(0, w.s * (0.12 + 0.22 * (g * 0.5 + 0.5)), w.s * (-0.15 + 0.3 * g));
       w.wrist.rotation.set(0, w.s * (-0.06 + 0.12 * g), w.s * 0.18 * Math.sin(phase - 1.6));
     }
-    body.position.y = -0.1 * f;
-    body.rotation.x = 0.04 * g;
+    body.position.y = -0.14 * f;
+    body.rotation.x = 0.05 * g - 0.06 * roar; // chest heaves up into the roar
 
-    const roar = Math.sin(Math.PI * clamp01((t - 4.9) / 1.2));
     neck.forEach((seg, i) => {
-      seg.rotation.x = -0.18 + 0.07 * Math.sin(t * 1.4 - i * 0.55) - (i === 0 ? 0.25 : 0) - roar * 0.03;
-      seg.rotation.y = 0.07 * Math.sin(t * 0.9 - i * 0.45);
+      seg.rotation.x = -0.18 + 0.06 * Math.sin(t * 1.7 - i * 0.55) - (i === 0 ? 0.25 + 0.12 * roar : 0) + (i > 2 ? roar * 0.06 : 0);
+      seg.rotation.y = 0.07 * Math.sin(t * 1.1 - i * 0.45);
     });
-    head.rotation.x = 1.1 + 0.06 * Math.sin(t * 1.4 - 3.2) - roar * 0.18;
-    jaw.rotation.x = 0.08 + 0.45 * roar;
+    head.position.z = 0.28 + 0.1 * roar; // thrusting strike
+    head.rotation.x = 1.1 + 0.05 * Math.sin(t * 1.7 - 3.2) - roar * 0.32;
+    head.rotation.y = roar * 0.025 * Math.sin(t * 41); // snarl tremor
+    jaw.rotation.x = 0.12 + 0.78 * roar;
     tail.forEach((seg, i) => {
-      seg.rotation.y = -0.11 + 0.12 * Math.sin(t * 2.0 - i * 0.5) * (0.4 + i / TAIL_N); // sweeps out to the side
-      seg.rotation.x = 0.06 + 0.05 * Math.sin(t * 1.5 - i * 0.4);
+      const w = Math.pow(0.3 + i / TAIL_N, 1.3);
+      seg.rotation.y = -0.11 + 0.2 * Math.sin(t * 3.1 - i * 0.6) * w; // whip lash
+      seg.rotation.x = 0.06 + 0.08 * Math.sin(t * 2.3 - i * 0.5);
     });
     for (const l of legs) {
-      const sw = Math.sin(t * 1.1 + (l.front ? 0 : 1.4) + l.s * 0.5);
-      // forelegs reach forward with claws curled; hind legs trail back, slightly splayed
-      l.hip.rotation.x = (l.front ? -0.85 + l.s * 0.12 : 1.15 - l.s * 0.1) + 0.1 * sw;
-      l.hip.rotation.z = l.s * (l.front ? 0.12 : 0.28);
-      l.knee.rotation.x = (l.front ? 1.25 : -1.35) + 0.12 * sw;
-      l.ankle.rotation.x = (l.front ? 0.5 : 0.95) + 0.1 * sw;
+      const sw = Math.sin(t * 1.6 + (l.front ? 0 : 1.4) + l.s * 0.5);
+      // forelegs rake forward with talons clenched; hind legs braced back
+      l.hip.rotation.x = (l.front ? -0.95 + l.s * 0.12 - 0.2 * roar : 1.15 - l.s * 0.1) + 0.12 * sw;
+      l.hip.rotation.z = l.s * (l.front ? 0.16 : 0.3);
+      l.knee.rotation.x = (l.front ? 1.35 : -1.35) + 0.12 * sw;
+      l.ankle.rotation.x = (l.front ? 0.85 : 1.05) + 0.12 * Math.abs(sw);
     }
 
     pinMat.opacity = 1 - smoother((t - 1.5) / 3);
@@ -391,20 +507,22 @@ export function createDragonScene(host: HTMLElement, opts: DragonSceneOptions): 
     rimA.position.set(Math.sin(t * 0.7) * 5 - 3, 3 + Math.cos(t * 0.5), -6);
     rimB.position.set(Math.cos(t * 0.6) * 4 + 4, -1 + Math.sin(t * 0.8) * 2, -5);
 
-    // dragon fades back once every glyph has left it
-    const fade = 1 - smoother((t - FADE_START) / (TIMING.dragonFadeEnd - FADE_START));
-    if (fade < 1 && !fadedMats) {
-      fadedMats = true;
-      for (const m of dragonMats) { m.transparent = true; m.needsUpdate = true; }
+    // region-by-region dissolve: the body is eaten away cell by cell as shards lift off it
+    let remain = 0;
+    for (let i = 0; i < WORD.length; i++) {
+      uP[i] = 1.08 * smoother((t - (TIMING.lettersStart + i * TIMING.perLetter)) / TIMING.regionDissolve);
+      remain += 1 - Math.min(1, uP[i]);
     }
-    if (fadedMats) for (const m of dragonMats) m.opacity = (baseOpacity.get(m) ?? 1) * fade;
-    chestLight.intensity *= fade;
-    dragon.visible = fade > 0.001;
+    remain /= WORD.length;
+    chestLight.intensity *= remain;
+    dragon.visible = remain > 0.001;
     dust.position.z = -t * 6;
 
     dragon.updateMatrixWorld(true);
     for (const w of wings) updateMembrane(w);
+    anchors.forEach((a, i) => a.getWorldPosition(uC[i]));
     updateGlyphs(t);
+    updateShards(t);
   };
 
   const ring: THREE.Vector3[] = Array.from({ length: 11 }, () => new THREE.Vector3());
@@ -441,15 +559,16 @@ export function createDragonScene(host: HTMLElement, opts: DragonSceneOptions): 
     camera.getWorldQuaternion(camQ);
     glyphs.forEach((g, i) => {
       const start = TIMING.lettersStart + i * TIMING.perLetter;
-      if (t < start) return;
+      if (t < start) { g.mesh.visible = false; g.detached = false; return; }
       if (!g.detached) {
+        // capture the live anatomical transform at breakup onset
         g.detached = true;
-        scene.attach(g.mesh); // keeps the captured world transform
-        g.from.p.copy(g.mesh.position);
-        g.from.q.copy(g.mesh.quaternion);
-        g.from.s = g.mesh.scale.x;
+        anchors[i].getWorldPosition(g.from.p);
+        anchors[i].getWorldQuaternion(g.from.q);
+        g.from.s = mounts[i][3] * 0.35;
       }
-      const k = clamp01((t - start) / TIMING.perLetter);
+      g.mesh.visible = true;
+      const k = clamp01((t - start - GLYPH_DELAY) / GLYPH_FLY);
       const e = easeInOutCubic(k);
       const sc = slot(i, tmpV);
       tmpA.copy(g.from.p).lerp(tmpV, e);
@@ -458,13 +577,69 @@ export function createDragonScene(host: HTMLElement, opts: DragonSceneOptions): 
       g.mesh.position.copy(tmpA).add(tmpB);
       g.mesh.quaternion.slerpQuaternions(g.from.q, camQ, e);
       g.mesh.scale.setScalar(THREE.MathUtils.lerp(g.from.s, sc, e));
-      const since = t - (start + TIMING.perLetter);
+      g.mat.opacity = smoother((t - start - 0.45) / 0.7);
+      g.mesh.updateMatrixWorld();
+      const since = t - (start + TIMING.letterBuild);
       const lockGlow = since >= 0 ? Math.exp(-since * 4) : 0;
       g.mat.emissiveIntensity = 0.55 + 0.35 * e + 2.6 * lockGlow;
       (g.halo.material as THREE.SpriteMaterial).opacity = 0.15 * Math.sin(Math.PI * k) + 0.9 * lockGlow + (since >= 0 ? 0.12 : 0);
     });
     const wordAlive = clamp01((t - LETTERS_END) / 0.5);
     for (const g of glyphs) if (g.detached && wordAlive > 0) g.mat.emissiveIntensity += 0.25 * wordAlive * (0.6 + 0.4 * Math.sin(t * 3));
+  };
+
+  const sm = new THREE.Matrix4();
+  const sq = new THREE.Quaternion();
+  const sQ = new THREE.Quaternion();
+  const sE = new THREE.Euler();
+  const sS = new THREE.Vector3();
+  const sP = new THREE.Vector3();
+  const sT = new THREE.Vector3();
+  const sC = new THREE.Vector3();
+  const sV = new THREE.Vector3();
+  const ZERO = new THREE.Vector3(0, 0, 0);
+  const updateShards = (t: number) => {
+    shards.forEach((sh, j) => {
+      const start = TIMING.lettersStart + sh.region * TIMING.perLetter;
+      const L = start + sh.r * 0.62;
+      if (t < L) {
+        sh.launched = false;
+        shardMesh.setMatrixAt(j, sm.compose(ZERO, sq.identity(), sS.set(0, 0, 0)));
+        return;
+      }
+      if (!sh.launched) {
+        // exact world point on the animated surface at the moment it erodes
+        sh.launched = true;
+        const pos = sh.mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
+        sh.p0.fromBufferAttribute(pos, sh.a).multiplyScalar(1 - sh.u - sh.v)
+          .addScaledVector(sV.fromBufferAttribute(pos, sh.b), sh.u)
+          .addScaledVector(sV.fromBufferAttribute(pos, sh.c), sh.v)
+          .applyMatrix4(sh.mesh.matrixWorld);
+        sh.out.copy(sh.p0).sub(uC[sh.region]);
+        if (sh.out.lengthSq() < 1e-6) sh.out.set(0, 1, 0);
+        sh.out.normalize();
+      }
+      const dur = Math.max(0.5, start + TIMING.letterBuild - 0.05 - L);
+      const u = clamp01((t - L) / dur);
+      const e = easeInOutCubic(u);
+      const g = glyphs[sh.region];
+      const sc = slot(sh.region, sT);
+      sP.copy(sh.lp).multiplyScalar(sc).applyQuaternion(g.mesh.quaternion).add(g.mesh.position);
+      sT.copy(sP); // live letter target
+      // swirl control point: lifts off the surface, then curls around toward the letter
+      sV.copy(sT).sub(sh.p0);
+      sC.copy(sh.out).cross(sV).normalize().multiplyScalar(0.55 * sh.sg * (D0 / 10));
+      sC.addScaledVector(sh.out, 0.75 * (D0 / 10)).add(sh.p0).addScaledVector(sV, 0.3);
+      const a0 = (1 - e) * (1 - e), a1 = 2 * (1 - e) * e, a2 = e * e;
+      sP.set(0, 0, 0).addScaledVector(sh.p0, a0).addScaledVector(sC, a1).addScaledVector(sT, a2);
+      const after = t - (L + dur);
+      const fadeOut = after > 0 ? 1 - smoother(after / 0.22) : 1;
+      const sz = sh.s0 * (1 + 0.7 * Math.sin(Math.PI * Math.min(1, u * 1.4))) * THREE.MathUtils.lerp(1, 0.55, e) * fadeOut;
+      sQ.setFromEuler(sE.set(sh.spin.x * (t - L), sh.spin.y * (t - L), sh.spin.z * (t - L)));
+      sq.slerpQuaternions(sQ, g.mesh.quaternion, smoother((u - 0.6) / 0.4));
+      shardMesh.setMatrixAt(j, sm.compose(sP, sq, sS.set(sz, sz * 0.4, sz * 0.75)));
+    });
+    shardMesh.instanceMatrix.needsUpdate = true;
   };
 
   // ---------- loop / lifecycle ----------
@@ -501,15 +676,17 @@ export function createDragonScene(host: HTMLElement, opts: DragonSceneOptions): 
     // Reduced motion: one still frame with the word assembled and dragon dimmed.
     phase = 0;
     for (const g of glyphs) g.detached = false;
+    for (const s of shards) s.launched = false;
     pose(LETTERS_END + 0.25, 0);
     renderer.render(scene, camera);
   };
 
   try {
     resize();
+    pose(0, 0);
+    sampleShards();
     if (opts.reduced) {
-      // detach immediately so glyphs settle into their slots in a single pose
-      for (const g of glyphs) { scene.attach(g.mesh); g.from.p.copy(g.mesh.position); g.from.q.copy(g.mesh.quaternion); g.from.s = g.mesh.scale.x; g.detached = true; }
+      phase = 0;
       pose(LETTERS_END + 0.25, 0);
       renderer.render(scene, camera);
       opts.onReady();
@@ -544,6 +721,7 @@ export function createDragonScene(host: HTMLElement, opts: DragonSceneOptions): 
         else if (mat) mats.add(mat);
       });
       mats.forEach((m) => m.dispose());
+      shardMesh.dispose();
       textures.forEach((t) => t.dispose());
       scene.clear();
       renderer.renderLists.dispose();

@@ -49,7 +49,7 @@
   color: #6ee7b7;
   opacity: 0;
   pointer-events: none;
-  animation: intro-caption 700ms 10600ms ease forwards;
+  animation: intro-caption 700ms 10900ms ease forwards;
 }
 @keyframes intro-caption { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: .85; transform: translate(-50%, 0); } }
 .intro-reduced .intro-caption { animation-duration: 1ms; animation-delay: 0ms; }

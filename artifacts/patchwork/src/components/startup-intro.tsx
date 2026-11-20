@@ -5,8 +5,10 @@ import "./startup-intro.css";
 
 const SESSION_KEY = "patchwork.intro.document";
 // Timeline (from scene readiness): 0-5s approach, 5-6s full-size hold,
-// 6-10.5s serial letter flights (0.5s each), 10-11s dragon fade, 11.4-12s overlay fade.
-const DURATION = 12000;
+// 4.2-6.1s roar/lunge, 6-10.35s region-by-region body breakup into shards
+// (P,A,T,C,H,W,O,R,K onsets 0.45s apart), letters locked by 10.85s,
+// hold, 12.2-12.8s overlay fade.
+const DURATION = 12800;
 const EXIT_FADE = 600;
 const REDUCED_DURATION = 1500;
 const FALLBACK_DURATION = 2400;
