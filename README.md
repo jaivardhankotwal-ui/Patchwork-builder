@@ -43,7 +43,7 @@ Auto-Merge’s validation label is **simulated only**: no generated tests are ru
 - **Human review by default:** Manual Review opens a draft PR. Auto-Merge is visibly separate, requires explicit confirmation and trusted repository-level permission, and remains subject to GitHub’s protections.
 - **A usable demo without a real outage:** mock traces can be loaded into the analyzer in one click and are clearly identified as synthetic. They are never automatically sent to AI or external services.
 - **Fast diagnosis target:** Patchwork measures diagnosis duration and targets approximately **8 seconds** for a hackathon demo. The dashboard’s average is based on recorded diagnosis runs; real times depend on provider latency and repository size. Diagnosis time is not mean time to recovery (MTTR), and it is not a performance guarantee.
-- here is the prototype link https://patchwork-builder.replit.app
+- here is the prototype link: https://patchwork-builder.replit.app
 
 ## Stack
 
